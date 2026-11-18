@@ -293,7 +293,9 @@ export async function replaceAllData(data: Data, meta: Meta) {
 export type CapturedPayment = { id: string; capturedAt: number; amount: number; currency: string; merchant: string; card: string };
 
 export function ensureDefaultCategories() {
-  if (state.meta.expensesSeeded || state.data.categories.length) return;
+  if (state.meta.expensesSeeded) return;
+  // Kategorie już są (np. przerwane wcześniejsze zasianie) — tylko dopinamy znacznik.
+  if (state.data.categories.length) return setMeta({ ...state.meta, expensesSeeded: true });
   const now = Date.now();
   const cats: Category[] = DEFAULT_CATEGORIES.map((c, order) => ({
     id: newId(),
@@ -336,7 +338,20 @@ function newExpense(now: number, fields: Pick<Expense, 'date' | 'categoryId' | '
  * Importuje płatności z kolejki natywnej. Zwraca id zapisane (lub już istniejące) — tylko te wolno
  * usunąć z kolejki. Czeka na zapis w IndexedDB przed zwróceniem.
  */
-export async function importCaptured(list: CapturedPayment[]): Promise<string[]> {
+export function importCaptured(list: CapturedPayment[]): Promise<string[]> {
+  // Wywołania są szeregowane, żeby dwa równoległe importy nie zapisały i nie wyceniły tego samego rekordu.
+  const run = importQueue.then(() => doImport(list));
+  importQueue = run.then(
+    () => undefined,
+    () => undefined,
+  );
+  return run;
+}
+
+let importQueue: Promise<void> = Promise.resolve();
+
+async function doImport(list: CapturedPayment[]): Promise<string[]> {
+  // Stan w pamięci zmieniamy dopiero po udanym zapisie, więc obecność id w stanie = zapisane w IndexedDB.
   const known = new Set(state.data.expenses.map((e) => e.id));
   const ids: string[] = [];
   const fresh: Expense[] = [];
@@ -361,13 +376,13 @@ export async function importCaptured(list: CapturedPayment[]): Promise<string[]>
   }
   if (fresh.length) {
     const changes: Changes = { expenses: fresh };
-    applyToState(changes);
     try {
       await repo.save(changes);
     } catch (err) {
       onSaveError(err);
       throw err;
     }
+    applyToState(changes);
   }
   return ids;
 }

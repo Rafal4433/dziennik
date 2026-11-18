@@ -37,6 +37,7 @@ describe('wydatki w store', () => {
     expect(cats).toHaveLength(6);
     expect(cats[0].name).toBe('Syf');
     expect(cats[0].junk).toBe(true);
+    expect(getState().meta.expensesSeeded).toBe(true);
     expect(cats.map((c) => c.order)).toEqual([0, 1, 2, 3, 4, 5]);
   });
 
@@ -105,5 +106,46 @@ describe('wydatki w store', () => {
     expect(getState().data.expenses).toHaveLength(1);
     expect(getState().data.merchantRules).toHaveLength(1);
     expect(getState().data.categories).toHaveLength(6);
+  });
+
+  it('nieudany zapis nie oznacza rekordu jako zapisanego, ponowienie go zapisuje', async () => {
+    const repo = freshRepo();
+    await init(repo);
+    const real = repo.save.bind(repo);
+    let fail = true;
+    repo.save = async (c) => {
+      if (fail) throw new Error('quota');
+      return real(c);
+    };
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    await expect(importCaptured([pay()])).rejects.toThrow('quota');
+    expect(getState().data.expenses).toHaveLength(0);
+    fail = false;
+    expect(await importCaptured([pay()])).toEqual(['cap-1']);
+    await settle();
+    await init(new IdbRepository(`exp-test-${n}`));
+    expect(getState().data.expenses.map((e) => e.id)).toEqual(['cap-1']);
+  });
+
+  it('równoległy import tego samego rekordu daje jeden wpis i jedno pobranie kursu', async () => {
+    await init(freshRepo());
+    const f = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ rates: [{ effectiveDate: '2026-11-18', mid: 4.27 }] }) });
+    vi.stubGlobal('fetch', f);
+    const p = pay({ id: 'par', amount: 12, currency: 'EUR' });
+    const [a, b] = await Promise.all([importCaptured([p]), importCaptured([p])]);
+    expect(a).toEqual(['par']);
+    expect(b).toEqual(['par']);
+    expect(getState().data.expenses).toHaveLength(1);
+    expect(f).toHaveBeenCalledTimes(1);
+  });
+
+  it('dopina znacznik zasiania, gdy kategorie już są', async () => {
+    const repo = freshRepo();
+    await init(repo);
+    await settle();
+    await repo.setMeta({ ...getState().meta, expensesSeeded: false });
+    await init(repo);
+    expect(getState().data.categories).toHaveLength(6);
+    expect(getState().meta.expensesSeeded).toBe(true);
   });
 });

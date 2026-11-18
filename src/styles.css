@@ -1,0 +1,838 @@
+/* ─────────────────────────────────────────────────────────
+   Dziennik — papierowy notes / księga rachunkowa
+   ───────────────────────────────────────────────────────── */
+
+:root {
+  --paper: #f5f1e8;
+  --paper-sunk: #ece6d8;
+  --ink: #1c1b19;
+  --ink-2: #5c574d;
+  --ink-3: #8c8576;
+  --rule: #d9d1c0;
+  --rule-strong: #1c1b19;
+  --accent: #1f4d3a; /* zieleń butelkowa — używana oszczędnie */
+  --accent-ink: #f5f1e8;
+  --accent-wash: #e2e8df;
+
+  --font-serif: 'Fraunces Variable', 'Source Serif 4', Georgia, serif;
+  --font-sans: 'Source Sans 3', -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  --radius: 3px;
+  --gutter: 20px;
+  --row: 52px;
+  --t: 120ms;
+  --tabbar-h: 56px;
+
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  --paper: #23211d;
+  --paper-sunk: #2c2a25;
+  --ink: #ebe5d8;
+  --ink-2: #b1aa9b;
+  --ink-3: #7f796c;
+  --rule: #3b3832;
+  --rule-strong: #ebe5d8;
+  --accent: #8fb99c;
+  --accent-ink: #1c1b19;
+  --accent-wash: #2d3a31;
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --paper: #23211d;
+    --paper-sunk: #2c2a25;
+    --ink: #ebe5d8;
+    --ink-2: #b1aa9b;
+    --ink-3: #7f796c;
+    --rule: #3b3832;
+    --rule-strong: #ebe5d8;
+    --accent: #8fb99c;
+    --accent-ink: #1c1b19;
+    --accent-wash: #2d3a31;
+    color-scheme: dark;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 17px;
+  line-height: 1.4;
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  text-align: inherit;
+}
+
+button:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+  letter-spacing: -0.01em;
+}
+
+.muted {
+  color: var(--ink-3);
+}
+
+/* ───────── układ ───────── */
+
+.app {
+  max-width: 560px;
+  margin: 0 auto;
+  padding: env(safe-area-inset-top) 0 calc(var(--tabbar-h) + env(safe-area-inset-bottom) + 24px);
+  min-height: 100dvh;
+}
+
+.screen {
+  padding: 0 var(--gutter);
+  min-height: calc(100dvh - var(--tabbar-h));
+}
+
+.loading {
+  min-height: 100dvh;
+}
+
+.page-head {
+  padding: 28px 0 18px;
+}
+
+.page-head-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 32px;
+}
+
+.eyebrow {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+.page-title {
+  margin: 4px 0 0;
+  font-family: var(--font-serif);
+  font-weight: 500;
+  font-size: 34px;
+  line-height: 1.08;
+  letter-spacing: -0.015em;
+  font-variation-settings: 'opsz' 72;
+}
+
+.day-nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-right: -10px;
+}
+
+.day-step {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-serif);
+  font-size: 26px;
+  line-height: 1;
+  color: var(--ink-2);
+  border-radius: var(--radius);
+  transition: background-color var(--t);
+}
+
+.day-step:active {
+  background: var(--paper-sunk);
+}
+
+/* ───────── sekcje jak w księdze ───────── */
+
+.section {
+  margin-top: 28px;
+}
+
+.section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 6px;
+  border-bottom: 1.5px solid var(--rule-strong);
+}
+
+.section-head h2 {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-weight: 600;
+  font-size: 19px;
+  letter-spacing: -0.005em;
+  font-variation-settings: 'opsz' 24;
+}
+
+.section-stat {
+  font-size: 14px;
+  color: var(--ink-2);
+}
+
+.section-foot {
+  margin-top: 28px;
+  padding-top: 10px;
+  border-top: 1px solid var(--rule);
+}
+
+.empty {
+  margin: 0;
+  padding: 14px 0;
+  color: var(--ink-3);
+  border-bottom: 1px solid var(--rule);
+}
+
+.hint {
+  margin: 8px 0 0;
+  font-size: 14px;
+  color: var(--ink-2);
+}
+
+.note {
+  margin: 0 0 4px;
+  padding: 10px 0;
+  font-size: 15px;
+  color: var(--ink-2);
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+}
+
+.note-top {
+  margin: 0 var(--gutter);
+}
+
+/* ───────── przyciski ───────── */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding: 0 14px;
+  border: 1px solid var(--ink);
+  border-radius: var(--radius);
+  font-size: 15px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: background-color var(--t), color var(--t);
+}
+
+.btn:active {
+  background: var(--paper-sunk);
+}
+
+.btn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
+.btn-text {
+  min-height: 38px;
+  padding: 0 2px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-color: var(--rule);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 4px;
+  transition: text-decoration-color var(--t);
+}
+
+.btn-text:active {
+  text-decoration-color: var(--ink);
+}
+
+.btn-text.quiet {
+  color: var(--ink-3);
+}
+
+.btn-x {
+  width: 32px;
+  height: 28px;
+  color: var(--ink-3);
+  font-size: 18px;
+  line-height: 1;
+}
+
+/* ───────── zadania ───────── */
+
+.task-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.task {
+  border-bottom: 1px solid var(--rule);
+}
+
+.task-line {
+  display: flex;
+  align-items: flex-start;
+  min-height: var(--row);
+}
+
+.check {
+  flex: none;
+  width: 44px;
+  min-height: var(--row);
+  margin-left: -12px;
+  display: grid;
+  place-items: center;
+}
+
+.check-box {
+  position: relative;
+  width: 19px;
+  height: 19px;
+  border: 1.5px solid var(--ink);
+  border-radius: 2px;
+  transition: background-color var(--t), border-color var(--t);
+}
+
+.is-done .check-box {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.is-done .check-box::after {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 1px;
+  width: 5px;
+  height: 10px;
+  border: solid var(--accent-ink);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.is-skipped .check-box {
+  border-color: var(--ink-3);
+}
+
+.is-skipped .check-box::after {
+  content: '';
+  position: absolute;
+  left: 3px;
+  right: 3px;
+  top: 7px;
+  height: 1.5px;
+  background: var(--ink-3);
+}
+
+.task-main {
+  flex: 1;
+  min-width: 0;
+  padding: 14px 8px 13px 2px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.task-title {
+  font-size: 17px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  transition: color var(--t);
+}
+
+.is-done .task-title {
+  color: var(--ink-3);
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+  text-decoration-color: var(--ink-2);
+}
+
+.is-skipped .task-title {
+  color: var(--ink-3);
+}
+
+.task-meta {
+  font-size: 13px;
+  color: var(--ink-3);
+}
+
+.timer-chip,
+.timer-static {
+  flex: none;
+  min-width: 56px;
+  min-height: var(--row);
+  margin-right: -6px;
+  padding: 0 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--ink-2);
+}
+
+.timer-chip.is-running {
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.timer-static {
+  color: var(--ink-3);
+}
+
+.glyph-play {
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 6px 0 6px 9px;
+  border-color: transparent transparent transparent currentColor;
+}
+
+.glyph-pause {
+  width: 9px;
+  height: 11px;
+  border-left: 3px solid currentColor;
+  border-right: 3px solid currentColor;
+}
+
+/* pytanie po kilku przeniesieniach — spokojne, bez alarmu */
+.prompt {
+  margin: 0 0 14px 32px;
+  padding: 2px 0 2px 14px;
+  border-left: 2px solid var(--rule);
+  font-size: 15px;
+  color: var(--ink-2);
+  animation: appear var(--t) ease-out;
+}
+
+.prompt p {
+  margin: 0 0 8px;
+}
+
+.prompt-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+}
+
+/* szczegóły zadania */
+.details {
+  margin: 0 0 16px 32px;
+  padding: 4px 0 4px 14px;
+  border-left: 2px solid var(--ink);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  animation: appear var(--t) ease-out;
+}
+
+@keyframes appear {
+  from {
+    opacity: 0;
+    transform: translateY(-2px);
+  }
+}
+
+.clock-block {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 0;
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+}
+
+.clock {
+  font-size: 32px;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+}
+
+.is-running .clock {
+  color: var(--accent);
+}
+
+.clock-side {
+  flex: 1;
+  min-width: 0;
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.clock-compare {
+  font-size: 12px;
+  color: var(--ink-2);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.field-label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+.field input,
+.field textarea,
+.plan-row input {
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 10px;
+  background: var(--paper-sunk);
+  border: 1px solid transparent;
+  border-bottom-color: var(--ink-3);
+  border-radius: var(--radius) var(--radius) 0 0;
+  font-size: 16px;
+  transition: border-color var(--t);
+}
+
+.field textarea {
+  resize: vertical;
+  line-height: 1.4;
+}
+
+.field input:focus,
+.field textarea:focus,
+.plan-row input:focus {
+  outline: none;
+  border-bottom-color: var(--accent);
+}
+
+.field input[type='number'] {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.field-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+  gap: 12px;
+}
+
+.input-with-btn {
+  display: flex;
+  gap: 6px;
+}
+
+.input-with-btn input {
+  flex: 1;
+  min-width: 0;
+}
+
+.entries {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+.entries li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px dotted var(--rule);
+}
+
+.entries li > span:first-child {
+  flex: 1;
+}
+
+.entries li:not(:has(.btn-x)) {
+  padding-right: 32px;
+}
+
+.entry-dur {
+  min-width: 40px;
+  text-align: right;
+}
+
+.detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+}
+
+.inline-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.inline-form p {
+  margin: 0;
+}
+
+/* dodawanie zadania */
+.add-task {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: var(--row);
+  border-bottom: 1px solid var(--rule);
+}
+
+.add-mark {
+  flex: none;
+  width: 44px;
+  margin-left: -12px;
+  text-align: center;
+  font-size: 22px;
+  font-weight: 400;
+  color: var(--ink-3);
+}
+
+.add-task input {
+  flex: 1;
+  min-width: 0;
+  height: var(--row);
+  padding: 0 2px;
+  background: transparent;
+  border: 0;
+  font-size: 17px;
+}
+
+.add-task input::placeholder {
+  color: var(--ink-3);
+}
+
+.add-task input:focus {
+  outline: none;
+}
+
+.add-task:focus-within {
+  border-bottom-color: var(--ink);
+}
+
+.add-hint {
+  position: absolute;
+  right: 0;
+  bottom: -20px;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+/* ───────── podsumowanie dnia ───────── */
+
+.ledger {
+  margin: 0;
+}
+
+.ledger-row,
+.ledger-sub {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.ledger-row {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.ledger-row dt {
+  font-weight: 600;
+}
+
+.ledger-sub {
+  padding: 6px 0 6px 16px;
+  font-size: 15px;
+  color: var(--ink-2);
+  border-bottom: 1px dotted var(--rule);
+}
+
+.ledger dd {
+  margin: 0;
+  font-size: 15px;
+}
+
+/* ───────── przegląd zadań ───────── */
+
+.plain-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.plain-item,
+.list-link {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.list-link {
+  min-height: 44px;
+}
+
+.day-group-head {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  padding: 14px 0 6px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  border-bottom: 1px solid var(--rule);
+}
+
+.day-group-head .num {
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.plan-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 0 2px;
+}
+
+.plan-row input {
+  width: auto;
+  font-family: var(--font-mono);
+  font-size: 15px;
+}
+
+.ledger-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 15px;
+}
+
+.ledger-table th {
+  padding: 10px 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  text-align: left;
+  border-bottom: 1px solid var(--rule);
+}
+
+.ledger-table td {
+  padding: 11px 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.ledger-table tr {
+  cursor: pointer;
+}
+
+.ledger-table .r {
+  text-align: right;
+  padding-left: 14px;
+}
+
+/* ───────── nawigacja dolna ───────── */
+
+.tabbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10;
+  display: flex;
+  justify-content: center;
+  padding-bottom: env(safe-area-inset-bottom);
+  background: var(--paper);
+  border-top: 1.5px solid var(--rule-strong);
+}
+
+.tab {
+  flex: 1;
+  max-width: 112px;
+  height: var(--tabbar-h);
+  display: grid;
+  place-items: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink-3);
+  position: relative;
+  transition: color var(--t);
+}
+
+.tab.is-active {
+  color: var(--ink);
+}
+
+.tab.is-active::before {
+  content: '';
+  position: absolute;
+  top: -1.5px;
+  left: 22%;
+  right: 22%;
+  height: 3px;
+  background: var(--accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}

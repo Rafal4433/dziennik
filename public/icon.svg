@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#F5F1E8"/>
+  <g stroke="#D9D1C0" stroke-width="6">
+    <line x1="96" y1="352" x2="416" y2="352"/>
+    <line x1="96" y1="404" x2="416" y2="404"/>
+  </g>
+  <line x1="96" y1="300" x2="416" y2="300" stroke="#1C1B19" stroke-width="9"/>
+  <text x="256" y="268" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="230" font-weight="500" fill="#1C1B19">D</text>
+  <rect x="96" y="372" width="64" height="12" fill="#1F4D3A"/>
+</svg>

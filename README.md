@@ -20,7 +20,7 @@ otworzyć w przeglądarce telefonu i wybrać „Dodaj do ekranu głównego”. P
 | Krok | Zakres | Stan |
 |---|---|---|
 | 1 | Ekran DZIŚ, zadania: statusy, stoper, ręczny czas, szacunek, najmniejsza wersja, rollover z licznikiem, pytanie po 3 przeniesieniach, podsumowanie dnia, kopia JSON | **gotowe** |
-| 2 | Wydatki: szybkie dodawanie, kategorie, widok dzień/tydzień/miesiąc, limity | następny |
+| 2 | Wydatki: szybkie dodawanie, Apple Pay przez Skróty, kategorie, widok dzień/tydzień/miesiąc, limity, licznik dni bez syfu | **gotowe** |
 | 3 | Nawyki: częstotliwości, odhaczanie z DZIŚ, siatka kalendarza, % z 30 dni | |
 | 4 | Statystyki i cotygodniowy przegląd, eksport CSV | |
 
@@ -35,8 +35,10 @@ Task          title, date, originalDate, status: todo|done|skipped,
               promptSnoozedOn?, closedAt?, resolution: let_go|split|null,
               parentId?, order
 TimeEntry     taskId → Task, date, startedAt, endedAt? (null = stoper chodzi), source: timer|manual
-Category      name, monthlyLimit? (gr), order, archived
-Expense       amount (gr), categoryId → Category, note, date
+Category      name, monthlyLimit? (gr), order, archived, junk (syf)
+Expense       amount (gr | null = czeka na kurs), categoryId → Category | null (= do uzupełnienia), note, date,
+              merchant, source: manual|applepay, original? {amount, currency, rate?, rateDate?}
+MerchantRule  sklep (znormalizowany) → kategoria; podpowiada kategorię przy kolejnych płatnościach
 Habit         name, frequency: daily | timesPerWeek(n) | weekdays([1..7]), order, archivedAt?
 HabitLog      habitId → Habit, date                (jedno odhaczenie w danym dniu)
 WeeklyReview  weekStart (poniedziałek), wentWell, blockers, experiment
@@ -48,6 +50,24 @@ Najważniejsze decyzje:
 - **Pytanie o decyzję** pojawia się, gdy `carriedFrom.length − carryBase ≥ 3`. Rozbicie albo przełożenie ustawia `carryBase`, więc licznik zostaje, a pytanie wraca dopiero po kolejnych trzech przeniesieniach. „Nie teraz” ukrywa je do końca dnia.
 - **Stoper** to seria odcinków `TimeEntry`. Pauza zamyka odcinek, wznowienie otwiera nowy. Naraz chodzi najwyżej jeden stoper, a start innego zadania pauzuje poprzednie. Chodzący stoper przetrwa zamknięcie aplikacji, bo w bazie zapisany jest tylko moment startu.
 - **Rollover** (`src/domain/tasks.ts → rollover`) uruchamia się przy pierwszym otwarciu w nowym dniu (Europe/Warsaw), przy powrocie do aplikacji i co minutę, więc łapie też północ. Każde zadanie `todo` z wcześniejszego dnia dostaje dzisiejszą datę i jedno przeniesienie, także po kilku dniach przerwy.
+
+## Wydatki i przechwytywanie płatności
+
+Płatności Apple Pay trafiają do aplikacji same, bez jej otwierania (tylko wersja iOS):
+
+1. Automatyzacja w **Skrótach** uruchamia App Intent „Dodaj wydatek” przy każdej płatności kartą.
+2. Intent zapisuje płatność (kwota, waluta, sklep) w natywnej kolejce, także gdy aplikacja jest zamknięta.
+3. Po otwarciu aplikacji (start i powrót na pierwszy plan) strona wczytuje kolejkę do IndexedDB i dopiero wtedy usuwa ją z kolejki.
+4. Wpis bez kategorii czeka w „Do uzupełnienia” na ekranie Wydatki (także jako licznik na Dziś). Wybór kategorii zapisuje regułę `merchantRules`,
+   więc ten sam sklep dostanie kategorię od razu.
+
+Płatności w obcej walucie przeliczane są po kursie średnim NBP z ostatniego dnia roboczego przed płatnością. Gdy kursu nie da się pobrać,
+wpis ma `amount: null` i „kurs do pobrania”, a przeliczenie ponawia się przy kolejnej synchronizacji.
+
+Kategorie z `junk: true` to „syf”. Ekran Wydatki i Dziś pokazują serię dni bez syfu oraz zestawienie miesiąca.
+
+Wersja na iPhone'a (Capacitor): `npm run build:ios` buduje stronę bez service workera i robi `cap sync ios`; potem uruchomienie z Xcode.
+Darmowe konto deweloperskie podpisuje aplikację na 7 dni — na dwa dni przed końcem Dziś pokazuje przypomnienie, żeby podłączyć telefon do Maca i zainstalować ją ponownie.
 
 ## Architektura
 

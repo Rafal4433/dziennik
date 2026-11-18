@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { formatPLN } from '../src/lib/format';
 import type { Category, Expense, MerchantRule } from '../src/data/model';
 import {
   DEFAULT_CATEGORIES,
@@ -14,6 +15,7 @@ import {
   isPendingRate,
   junkComparison,
   junkFreeDays,
+  junkTodayLine,
   merchantKey,
   monthlyLimitUsage,
   parseAmount,
@@ -194,5 +196,22 @@ describe('pomocnicze ekranu Wydatki', () => {
     expect(expenseAmountLabel(exp('2026-11-18', { amount: null, original: { ...eur, rate: null, rateDate: null } }))).toBe(
       '12,00 EUR · kurs do pobrania',
     );
+  });
+});
+
+describe('junkTodayLine', () => {
+  const cats = [cat('j', { junk: true }), cat('f')];
+  const ex = (id: string, date: string, categoryId: string, amount: number) => exp(date, { id, categoryId, amount });
+  it('null bez wydatków', () => {
+    expect(junkTodayLine([], cats, '2026-11-18')).toBeNull();
+  });
+  it('syf dziś: liczba i suma', () => {
+    const e = [ex('1', '2026-11-18', 'j', 999), ex('2', '2026-11-18', 'j', 599), ex('3', '2026-11-18', 'f', 100)];
+    expect(junkTodayLine(e, cats, '2026-11-18')).toBe(`Dziś: syf 2 × ${formatPLN(1598)}`);
+  });
+  it('seria dni bez syfu z odmianą', () => {
+    const e = [ex('1', '2026-11-13', 'j', 500), ex('2', '2026-11-18', 'f', 100)];
+    expect(junkTodayLine(e, cats, '2026-11-18')).toBe('Bez syfu od 5 dni');
+    expect(junkTodayLine([ex('3', '2026-11-18', 'f', 100)], cats, '2026-11-18')).toBe('Bez syfu od 1 dnia');
   });
 });

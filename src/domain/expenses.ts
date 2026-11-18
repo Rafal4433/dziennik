@@ -2,7 +2,7 @@ import type { Category, DayKey, Expense, MerchantRule } from '../data/model';
 import { addDays, weekStart } from '../lib/date';
 import { isLive } from './tasks';
 import { formatForeign } from './currency';
-import { formatPLN } from '../lib/format';
+import { formatPLN, plural } from '../lib/format';
 
 /** Kategorie startowe — w tej kolejności. */
 export const DEFAULT_CATEGORIES: { name: string; junk: boolean }[] = [
@@ -229,4 +229,16 @@ export function expenseAmountLabel(e: Expense): string {
   if (!e.original) return formatPLN(e.amount ?? 0);
   const f = formatForeign(e.original.amount, e.original.currency);
   return e.amount === null ? `${f} · kurs do pobrania` : `${f} ≈ ${formatPLN(e.amount)}`;
+}
+
+/** Linijka o syfie na „Dziś”: „Dziś: syf 2 × 15,98 zł” albo „Bez syfu od N dni”; null, gdy nie ma żadnych wydatków. */
+export function junkTodayLine(expenses: Expense[], categories: Category[], today: DayKey): string | null {
+  if (!expenses.some(isLive)) return null;
+  const todays = expenses.filter((e) => e.date === today && isJunk(e, categories));
+  if (todays.length > 0) {
+    const sum = todays.reduce((s, e) => s + (e.amount ?? 0), 0);
+    return `Dziś: syf ${todays.length} × ${formatPLN(sum)}`;
+  }
+  const n = junkFreeDays(expenses, categories, today);
+  return `Bez syfu od ${n} ${plural(n, 'dnia', 'dni', 'dni')}`;
 }

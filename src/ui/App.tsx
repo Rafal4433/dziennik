@@ -58,7 +58,7 @@ export function App() {
   return (
     <div class="app">
       {s.saveError && <p class="note note-top">{s.saveError}</p>}
-      {tab === 'today' && <TodayScreen day={day} setDay={setDay} />}
+      {tab === 'today' && <TodayScreen day={day} setDay={setDay} goToExpenses={() => setTab('expenses')} />}
       {tab === 'tasks' && <TasksScreen openDay={openDay} />}
       {tab === 'expenses' && <ExpensesScreen />}
       {tab === 'habits' && <PlaceholderScreen title="Nawyki" />}

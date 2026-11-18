@@ -8,6 +8,10 @@ import { useNow, useSwipe } from '../../lib/hooks';
 import { TaskRow } from '../components/TaskRow';
 import { AddTask } from '../components/AddTask';
 import { DaySummary } from '../components/DaySummary';
+import { AddExpense } from '../components/AddExpense';
+import { ExpenseRow } from '../components/ExpenseRow';
+import { ExpiryNote } from '../components/ExpiryNote';
+import { inRange, junkTodayLine, pendingExpenses, pickableCategories, totals } from '../../domain/expenses';
 
 /** Wieczorne podsumowanie pokazuje się samo od tej godziny. */
 const EVENING_HOUR = 20;
@@ -15,9 +19,10 @@ const EVENING_HOUR = 20;
 interface Props {
   day: DayKey;
   setDay: (d: DayKey) => void;
+  goToExpenses: () => void;
 }
 
-export function TodayScreen({ day, setDay }: Props) {
+export function TodayScreen({ day, setDay, goToExpenses }: Props) {
   const s = useAppState();
   const { today } = s;
   const { tasks: allTasks, timeEntries } = s.data;
@@ -36,6 +41,14 @@ export function TodayScreen({ day, setDay }: Props) {
   const isPast = day < today;
   const showSummary = isPast || (isToday && (summaryOpen || hourOf(now) >= EVENING_HOUR));
   const rolloverNote = isToday && s.meta.lastRollover?.day === today && s.meta.lastRollover.moved > 0 ? s.meta.lastRollover.moved : 0;
+
+  const { expenses, categories: allCategories } = s.data;
+  const dayRange = { start: day, end: day };
+  const dayExpenses = expenses.filter((e) => isLive(e) && inRange(e, dayRange));
+  const spent = totals(expenses, allCategories, dayRange).total;
+  const pendingCount = pendingExpenses(expenses).length;
+  const junkLine = isToday ? junkTodayLine(expenses, allCategories, today) : null;
+  const [openExpense, setOpenExpense] = useState<string | null>(null);
 
   const swipe = useSwipe(
     () => setDay(addDays(day, 1)),
@@ -57,6 +70,8 @@ export function TodayScreen({ day, setDay }: Props) {
         </div>
         <h1 class="page-title">{capitalize(formatDayLong(day))}</h1>
       </header>
+
+      <ExpiryNote now={now} />
 
       {rolloverNote > 0 && (
         <p class="note">
@@ -103,15 +118,39 @@ export function TodayScreen({ day, setDay }: Props) {
             <p class="empty">Ten moduł powstanie w kolejnym kroku.</p>
           </section>
 
-          <section class="section">
-            <header class="section-head">
-              <h2>Wydatki</h2>
-              <span class="section-stat num">{formatPLN(0)}</span>
-            </header>
-            <p class="empty">Ten moduł powstanie w kolejnym kroku.</p>
-          </section>
         </>
       )}
+
+      <section class="section">
+        <header class="section-head">
+          <h2>Wydatki</h2>
+          <span class="section-stat num">{formatPLN(spent)}</span>
+        </header>
+        {!isPast && pendingCount > 0 && (
+          <p class="note">
+            Do uzupełnienia: {pendingCount}{' '}
+            <button class="btn-text" onClick={goToExpenses}>Uzupełnij</button>
+          </p>
+        )}
+        {junkLine && <p class="note">{junkLine}</p>}
+        {dayExpenses.length === 0 ? (
+          <p class="empty">{isToday ? 'Dziś bez wydatków.' : 'Tego dnia nie zapisano wydatków.'}</p>
+        ) : (
+          <ul class="plain-list">
+            {dayExpenses.map((e) => (
+              <ExpenseRow
+                key={e.id}
+                expense={e}
+                allCategories={allCategories}
+                categories={pickableCategories(allCategories)}
+                expanded={openExpense === e.id}
+                onToggle={() => setOpenExpense(openExpense === e.id ? null : e.id)}
+              />
+            ))}
+          </ul>
+        )}
+        {!isPast && <AddExpense compact date={day} />}
+      </section>
 
       {showSummary ? (
         <DaySummary day={day} today={today} tasks={tasks} carriedAway={carriedAway} entries={timeEntries} now={now} />

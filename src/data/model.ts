@@ -103,8 +103,14 @@ export type HabitFrequency =
   /** 1 = poniedziałek … 7 = niedziela */
   | { kind: 'weekdays'; days: number[] };
 
+/** `check` — samo odhaczenie; `measure` — wpis z liczbą (np. waga). */
+export type HabitKind = 'check' | 'measure';
+
 export interface Habit extends BaseRecord {
   name: string;
+  kind: HabitKind;
+  /** Jednostka dla `measure` (np. 'kg'); dla `check` null. */
+  unit: string | null;
   frequency: HabitFrequency;
   order: number;
   archivedAt: number | null;
@@ -114,6 +120,8 @@ export interface Habit extends BaseRecord {
 export interface HabitLog extends BaseRecord {
   habitId: string;
   date: DayKey;
+  /** Dla `measure`: wartość w jednostce nawyku; dla `check` null. */
+  value: number | null;
 }
 
 /* ───────────── Przegląd tygodnia (kolejny krok) ───────────── */
@@ -162,6 +170,8 @@ export interface Meta {
   lastRollover: { day: DayKey; moved: number } | null;
   /** Czy kategorie startowe wydatków zostały już założone. */
   expensesSeeded: boolean;
+  /** Czy nawyki startowe zostały już założone. */
+  habitsSeeded: boolean;
 }
 
 export const emptyData = (): Data => ({

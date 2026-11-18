@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'preact/hooks';
-import { defaultMeta, normalizeCategory, normalizeExpense, type Changes, type Repository } from './db';
-import { COLLECTIONS, emptyData, type Category, type CollectionName, type Data, type DayKey, type Expense, type MerchantRule, type Meta, type Task, type TimeEntry } from './model';
+import { defaultMeta, normalizeCategory, normalizeExpense, normalizeHabit, normalizeHabitLog, type Changes, type Repository } from './db';
+import { COLLECTIONS, emptyData, type Category, type CollectionName, type Data, type DayKey, type Expense, type Habit, type MerchantRule, type Meta, type Task, type TimeEntry } from './model';
 import { fetchNbpRate } from './nbp';
 import { dayKeyOf, todayKey } from '../lib/date';
 import { toPLNGrosze } from '../domain/currency';
@@ -86,6 +86,7 @@ export async function init(r: Repository) {
   state = { ...state, data, meta, today: todayKey(), ready: true };
   runRolloverIfNeeded();
   ensureDefaultCategories();
+  ensureDefaultHabits();
   emit();
 }
 
@@ -280,13 +281,33 @@ export async function replaceAllData(data: Data, meta: Meta) {
   // Kopie ze starszych wersji nie mają nowych pól — uzupełniamy je domyślnymi.
   clean.expenses = clean.expenses.map(normalizeExpense);
   clean.categories = clean.categories.map(normalizeCategory);
+  clean.habits = clean.habits.map(normalizeHabit);
+  clean.habitLogs = clean.habitLogs.map(normalizeHabitLog);
   meta = { ...defaultMeta(), ...meta };
   await repo.replaceAll(clean, meta);
   state = { ...state, data: clean, meta };
   runRolloverIfNeeded();
   // Kopia bez kategorii (np. v1) nie może zostawić aplikacji bez żadnej.
   ensureDefaultCategories();
+  // Kopia bez nawyków (np. sprzed modułu) dostaje startowe.
+  ensureDefaultHabits();
   emit();
+}
+
+/* ───────── nawyki ───────── */
+
+export function ensureDefaultHabits() {
+  if (state.meta.habitsSeeded) return;
+  // Nawyki już są (np. przerwane wcześniejsze zasianie) — tylko dopinamy znacznik.
+  if (state.data.habits.length) return setMeta({ ...state.meta, habitsSeeded: true });
+  const now = Date.now();
+  const base = { createdAt: now, updatedAt: now, deletedAt: null, frequency: { kind: 'daily' } as const, archivedAt: null };
+  const habits: Habit[] = [
+    { ...base, id: newId(), name: 'Witaminy', kind: 'check', unit: null, order: 0 },
+    { ...base, id: newId(), name: 'Ważenie się', kind: 'measure', unit: 'kg', order: 1 },
+  ];
+  commit({ habits });
+  setMeta({ ...state.meta, habitsSeeded: true });
 }
 
 /* ───────── wydatki ───────── */

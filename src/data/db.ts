@@ -1,5 +1,5 @@
 import { openDB, type IDBPDatabase } from 'idb';
-import { COLLECTIONS, emptyData, type CollectionName, type Category, type Collections, type Data, type Expense, type Meta } from './model';
+import { COLLECTIONS, emptyData, type CollectionName, type Category, type Collections, type Data, type Expense, type Habit, type HabitLog, type Meta } from './model';
 
 /**
  * Warstwa trwałości. Reszta aplikacji zna tylko interfejs `Repository`,
@@ -21,7 +21,7 @@ const DB_NAME = 'dziennik';
 export const DB_VERSION = 2;
 const META_KEY = 'app';
 
-export const defaultMeta = (): Meta => ({ lastRolloverDay: null, lastRollover: null, expensesSeeded: false });
+export const defaultMeta = (): Meta => ({ lastRolloverDay: null, lastRollover: null, expensesSeeded: false, habitsSeeded: false });
 
 /** Uzupełnia pola dodane w v2 (rekordy ze starej bazy lub starej kopii). */
 export function normalizeExpense(e: any): Expense {
@@ -36,6 +36,14 @@ export function normalizeExpense(e: any): Expense {
 
 export function normalizeCategory(c: any): Category {
   return { ...c, junk: c.junk ?? false };
+}
+
+export function normalizeHabit(h: any): Habit {
+  return { ...h, kind: h.kind ?? 'check', unit: h.unit ?? null };
+}
+
+export function normalizeHabitLog(l: any): HabitLog {
+  return { ...l, value: l.value ?? null };
 }
 
 /** Kolekcje istniejące w bazie v1 (bez merchantRules). */
@@ -73,6 +81,8 @@ export class IdbRepository implements Repository {
     );
     data.expenses = data.expenses.map(normalizeExpense);
     data.categories = data.categories.map(normalizeCategory);
+    data.habits = data.habits.map(normalizeHabit);
+    data.habitLogs = data.habitLogs.map(normalizeHabitLog);
     const meta = ((await tx.objectStore('meta').get(META_KEY)) as Meta | undefined) ?? defaultMeta();
     await tx.done;
     return { data, meta: { ...defaultMeta(), ...meta } };

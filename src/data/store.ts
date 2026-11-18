@@ -337,6 +337,8 @@ export function setMeasure(habitId: string, day: DayKey, value: number | null) {
     if (existing) commit({ habitLogs: [{ ...existing, deletedAt: now, updatedAt: now }] });
     return;
   }
+  // Ta sama wartość drugi raz (np. ✓, a potem blur) — bez zapisu.
+  if (existing && existing.value === value) return;
   commit({
     habitLogs: [existing ? { ...existing, value, updatedAt: now } : newLog(habitId, day, value, now)],
   });

@@ -38,7 +38,7 @@ export function HabitEditor() {
             {archived.map((h) => (
               <li key={h.id} class="plain-item">
                 <span class="muted">{h.name}</span>
-                <button class="btn-text" onClick={() => updateHabit(h.id, { archivedAt: null, order: active.length })}>Przywróć</button>
+                <button class="btn-text" onClick={() => updateHabit(h.id, { archivedAt: null, order: active.reduce((m, a) => Math.max(m, a.order), -1) + 1 })}>Przywróć</button>
               </li>
             ))}
           </ul>

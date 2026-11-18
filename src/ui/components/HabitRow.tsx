@@ -1,3 +1,4 @@
+import { Fragment } from 'preact';
 import { useLayoutEffect, useRef, useState } from 'preact/hooks';
 import type { DayKey, Habit, HabitLog } from '../../data/model';
 import { setMeasure, toggleHabit } from '../../data/store';
@@ -56,22 +57,33 @@ function MeasureRow({ habit, logs, day, log, seriesText }: { habit: Habit; logs:
   }, [showInput]);
 
   const last = saved === null ? weightTrend(logs, habit.id, day).last : null;
-  const meta = [last && `ostatnio ${formatMeasure(last.value, null)}`, seriesText].filter(Boolean).join(' · ');
+  /** Żywy wpis bez wartości (np. odhaczony, zanim nawyk zmienił rodzaj). */
+  const doneNoValue = !!log && saved === null;
+  const meta = [doneNoValue ? 'zrobione, bez wartości' : last && `ostatnio ${formatMeasure(last.value, null)}`, seriesText].filter(
+    (x): x is string => !!x,
+  );
   const unitLabel = habit.unit ?? '';
 
-  const submit = () => {
+  /**
+   * Zapis z pola — wspólny dla ✓/Enter i opuszczenia pola (na iPhonie klawiatura dziesiętna nie ma
+   * Return, „Gotowe” tylko zdejmuje fokus). Podwójne wywołanie (✓, potem blur) jest nieszkodliwe:
+   * `setMeasure` pomija tę samą wartość, a usuwanie — brak żywego wpisu.
+   */
+  const submit = (fromBlur = false) => {
     const v = text.trim();
     if (!v) {
-      if (saved !== null) setMeasure(habit.id, day, null);
       setBad(false);
+      // Puste pole usuwa każdy żywy wpis tego dnia (także bez wartości). Samo wejście i wyjście
+      // z pustego pola przy wpisie „bez wartości” go nie kasuje — tylko wyczyszczona wartość albo ✓.
+      if (log && (!fromBlur || saved !== null)) setMeasure(habit.id, day, null);
       return;
     }
     const value = parseMeasure(v, habit.unit);
     if (value === null) return setBad(true);
     setBad(false);
     setText(fieldValue(value));
-    setMeasure(habit.id, day, value);
     setEditing(false);
+    setMeasure(habit.id, day, value);
   };
 
   if (!showInput && saved !== null) {
@@ -88,6 +100,7 @@ function MeasureRow({ habit, logs, day, log, seriesText }: { habit: Habit; logs:
         >
           <span class="check-box" aria-hidden="true" />
           <span class="habit-name">{habit.name}</span>
+          {seriesText && <span class="habit-side num">{seriesText}</span>}
           <span class="habit-value num">{formatMeasure(saved, habit.unit)}</span>
         </button>
       </li>
@@ -107,7 +120,17 @@ function MeasureRow({ habit, logs, day, log, seriesText }: { habit: Habit; logs:
           <span class="check-box" aria-hidden="true" />
           <span class="habit-text">
             <label class="habit-name" for={`m-${habit.id}`}>{habit.name}</label>
-            {meta && <span class="habit-meta num">{meta}</span>}
+            {meta.length > 0 && (
+              <span class="habit-meta num">
+                {/* Każda część w całości — łamanie tylko między nimi. */}
+                {meta.map((m, i) => (
+                  <Fragment key={m}>
+                    {i > 0 && ' '}
+                    <span class="habit-meta-part">{i > 0 ? `· ${m}` : m}</span>
+                  </Fragment>
+                ))}
+              </span>
+            )}
           </span>
         </span>
         <span class="habit-entry">
@@ -123,13 +146,18 @@ function MeasureRow({ habit, logs, day, log, seriesText }: { habit: Habit; logs:
               setText(e.currentTarget.value);
               setBad(false);
             }}
-            onBlur={() => {
-              // Bez zmian — wracamy do zapisanej wartości (stuknięcie ✓ też tu trafia, efekt ten sam).
-              if (saved !== null && text.trim() === fieldValue(saved)) setEditing(false);
-            }}
+            onBlur={() => submit(true)}
           />
           {unitLabel && <span class="habit-unit">{unitLabel}</span>}
-          <button class="icon-btn habit-save" type="submit" aria-label={`Zapisz: ${habit.name}`}>✓</button>
+          <button
+            class="icon-btn habit-save"
+            type="submit"
+            aria-label={`Zapisz: ${habit.name}`}
+            // Fokus zostaje w polu, więc stuknięcie ✓ nie wywołuje najpierw blur.
+            onPointerDown={(e) => e.preventDefault()}
+          >
+            ✓
+          </button>
         </span>
       </form>
       {bad && <p class="hint habit-hint">{habit.unit === 'kg' ? 'Podaj wagę, np. 82,4.' : 'Podaj liczbę.'}</p>}

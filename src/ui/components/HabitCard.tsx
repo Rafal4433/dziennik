@@ -1,5 +1,5 @@
 import type { DayKey, Habit, HabitLog } from '../../data/model';
-import { calendarWeeks, completion30, frequencyLabel, streak } from '../../domain/habits';
+import { calendarWeeks, completion30, frequencyLabel, goalWeeks, streak } from '../../domain/habits';
 import { plural } from '../../lib/format';
 import { HabitGrid } from './HabitGrid';
 import { WeightChart } from './WeightChart';
@@ -26,7 +26,7 @@ export function HabitCard({ habit, logs, today }: { habit: Habit; logs: HabitLog
         )}
       </div>
       <p class="habit-card-meta">{meta.join(' · ')}</p>
-      <HabitGrid weeks={calendarWeeks(habit, logs, today, 5)} today={today} />
+      <HabitGrid weeks={calendarWeeks(habit, logs, today, 5)} today={today} goal={weekly ? goalWeeks(habit, logs, today, 5) : undefined} />
       {habit.kind === 'measure' && <WeightChart habit={habit} logs={logs} today={today} />}
     </li>
   );

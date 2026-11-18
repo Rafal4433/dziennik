@@ -9,16 +9,20 @@ type Cell = { day: DayKey; state: CalendarState };
 
 /**
  * Siatka ostatnich tygodni (pon–nd). Kropka = wykonany, pusty kontur = zaplanowany bez wpisu
- * (spokojnie, bez koloru), dziś jeszcze nie odhaczony = „w toku”, nic = niezaplanowany / przyszły.
+ * (spokojnie, bez koloru; przy „N razy w tygodniu” minione dni bez wpisu są puste), dziś jeszcze nie odhaczony = „w toku”, nic = niezaplanowany / przyszły.
  */
-export function HabitGrid({ weeks, today }: { weeks: Cell[][]; today: DayKey }) {
+export function HabitGrid({ weeks, today, goal }: { weeks: Cell[][]; today: DayKey; goal?: { met: number; total: number } }) {
   const cells = weeks.flat();
   const done = cells.filter((c) => c.state === 'done').length;
   const planned = cells.filter((c) => c.state === 'done' || (c.state === 'missed' && c.day !== today)).length;
   const first = cells[0]?.day;
-  const label = first
-    ? `Od ${formatDayMonth(first)}: ${done} z ${planned} ${plural(planned, 'zaplanowanego dnia', 'zaplanowanych dni', 'zaplanowanych dni')}`
-    : '';
+  // timesPerWeek: wynik liczony tygodniami (dni bez wpisu nie są „zaplanowane”).
+  const summary = goal
+    ? goal.total === 0
+      ? 'jeszcze bez pełnego tygodnia'
+      : `${goal.met} z ${goal.total} ${plural(goal.total, 'tygodnia', 'tygodni', 'tygodni')} z celem`
+    : `${done} z ${planned} ${plural(planned, 'zaplanowanego dnia', 'zaplanowanych dni', 'zaplanowanych dni')}`;
+  const label = first ? `Od ${formatDayMonth(first)}: ${summary}` : '';
 
   return (
     <div class="habit-grid" role="img" aria-label={label}>

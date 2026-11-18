@@ -101,6 +101,17 @@ describe('nawyki: akcje', () => {
     expect(live(k.id)).toHaveLength(0);
   });
 
+  it('ten sam zapis drugi raz (✓ + blur) nic nie zmienia', async () => {
+    const { k } = await setup();
+    setMeasure(k.id, D, 82.4);
+    const first = live(k.id)[0];
+    const count = getState().data.habitLogs.length;
+    setMeasure(k.id, D, 82.4);
+    expect(getState().data.habitLogs).toHaveLength(count);
+    expect(live(k.id)[0].updatedAt).toBe(first.updatedAt);
+    expect(live(k.id)[0]).toBe(first);
+  });
+
   it('nie miesza rodzajów i ignoruje nieznany nawyk', async () => {
     const { w, k } = await setup();
     toggleHabit(k.id, D);

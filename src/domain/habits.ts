@@ -121,7 +121,11 @@ export function completion30(habit: Habit, logs: HabitLog[], today: DayKey): num
 
 export type CalendarState = 'done' | 'missed' | 'off' | 'future';
 
-/** Tygodnie pon–nd (ostatni zawiera `today`). `off` = niezaplanowany lub przed utworzeniem. */
+/**
+ * Tygodnie pon–nd (ostatni zawiera `today`). `off` = niezaplanowany lub przed utworzeniem.
+ * `timesPerWeek`: minione dni bez wpisu to `off` (żaden konkretny dzień nie był „obowiązkowy”;
+ * wynik tygodnia opisuje `goalWeeks`), dziś bez wpisu — `missed`, dopóki cel tygodnia nieosiągnięty.
+ */
 export function calendarWeeks(
   habit: Habit,
   logs: HabitLog[],
@@ -139,12 +143,35 @@ export function calendarWeeks(
       if (day > today) state = 'future';
       else if (day < created) state = 'off';
       else if (logOn(logs, habit.id, day)) state = 'done';
+      else if (habit.frequency.kind === 'timesPerWeek' && day < today) state = 'off';
       else state = isDue(habit, logs, day) ? 'missed' : 'off';
       row.push({ day, state });
     }
     out.push(row);
   }
   return out;
+}
+
+/**
+ * `timesPerWeek`: tygodnie z celem w siatce ostatnich `weeks` tygodni. Liczą się minione tygodnie,
+ * których koniec nie wypada przed początkiem historii, oraz bieżący — tylko gdy cel już osiągnięty.
+ */
+export function goalWeeks(habit: Habit, logs: HabitLog[], today: DayKey, weeks = 5): { met: number; total: number } {
+  const f = habit.frequency;
+  const times = f.kind === 'timesPerWeek' ? f.times : 1;
+  const start = createdDay(habit, logs);
+  const current = weekStart(today);
+  let met = 0;
+  let total = 0;
+  for (let w = weeks - 1; w >= 0; w--) {
+    const ws = addDays(current, -7 * w);
+    if (addDays(ws, 6) < start) continue;
+    const ok = weekCount(habit, logs, ws) >= times;
+    if (ws === current && !ok) continue;
+    total++;
+    if (ok) met++;
+  }
+  return { met, total };
 }
 
 /**

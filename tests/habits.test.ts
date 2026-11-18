@@ -3,6 +3,7 @@ import type { DayKey, Habit, HabitLog } from '../src/data/model';
 import {
   activeHabits,
   calendarWeeks,
+  goalWeeks,
   completion30,
   formatMeasure,
   frequencyLabel,
@@ -157,6 +158,29 @@ describe('calendarWeeks', () => {
     const flat = calendarWeeks(h, [], TODAY).flat();
     expect(flat.find((c) => c.day === '2026-11-17')!.state).toBe('off');
     expect(flat.find((c) => c.day === '2026-11-16')!.state).toBe('missed');
+  });
+  it('timesPerWeek: niezalogowane minione dni to off, dziś w toku, daily bez zmian', () => {
+    const h = habit({ frequency: { kind: 'timesPerWeek', times: 3 } });
+    const flat = calendarWeeks(h, logs('2026-11-10', '2026-11-17'), TODAY).flat();
+    const st = (d: DayKey) => flat.find((c) => c.day === d)!.state;
+    expect(st('2026-11-11')).toBe('off');
+    expect(st('2026-11-16')).toBe('off');
+    expect(st('2026-11-18')).toBe('off');
+    expect(st('2026-11-17')).toBe('done');
+    expect(st(TODAY)).toBe('missed');
+    const d = calendarWeeks(habit(), logs('2026-11-17'), TODAY).flat();
+    expect(d.find((c) => c.day === '2026-11-18')!.state).toBe('missed');
+  });
+});
+
+describe('goalWeeks', () => {
+  it('liczy tygodnie z celem: pełne minione od utworzenia + bieżący, gdy już spełniony', () => {
+    const h = habit({ frequency: { kind: 'timesPerWeek', times: 2 } });
+    // tygodnie od pon: 10-26 (sb+nd → cel), 11-02 (1 wpis), 11-09 (cel), bieżący 11-16; 10-19 przed historią
+    const l = logs('2026-11-01', '2026-10-31', '2026-11-03', '2026-11-10', '2026-11-12');
+    expect(goalWeeks(h, l, TODAY, 5)).toEqual({ met: 2, total: 3 });
+    expect(goalWeeks(h, [...l, ...logs('2026-11-16', '2026-11-17')], TODAY, 5)).toEqual({ met: 3, total: 4 });
+    expect(goalWeeks(h, logs('2026-11-03'), TODAY, 5)).toEqual({ met: 0, total: 3 });
   });
 });
 

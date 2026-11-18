@@ -70,14 +70,29 @@ export interface Category extends BaseRecord {
   monthlyLimit: number | null;
   order: number;
   archived: boolean;
+  /** Kategoria „syfu” — wydatki, które świadomie chcemy widzieć osobno. */
+  junk: boolean;
 }
 
 export interface Expense extends BaseRecord {
-  /** Kwota w groszach. */
-  amount: number;
-  categoryId: string;
+  /** Kwota w groszach PLN; null = kurs waluty obcej do pobrania (nie wlicza się do sum). */
+  amount: number | null;
+  categoryId: string | null;
   note: string;
   date: DayKey;
+  /** Nazwa sklepu / odbiorcy (np. z Apple Pay). */
+  merchant: string;
+  source: 'manual' | 'applepay';
+  /** Kiedy płatność została przechwycona (ms); null dla wpisów ręcznych. */
+  capturedAt: number | null;
+  /** Kwota w walucie obcej; `amount` tu w jednostkach waluty (np. 12.5). */
+  original: { amount: number; currency: string; rate: number | null; rateDate: DayKey | null } | null;
+}
+
+/** Zapamiętane przypisanie sklepu do kategorii (tylko podpowiedź, nigdy automatyczne zatwierdzenie). */
+export interface MerchantRule extends BaseRecord {
+  merchantKey: string;
+  categoryId: string;
 }
 
 /* ───────────── Nawyki (kolejny krok) ───────────── */
@@ -118,6 +133,7 @@ export interface Collections {
   timeEntries: TimeEntry;
   categories: Category;
   expenses: Expense;
+  merchantRules: MerchantRule;
   habits: Habit;
   habitLogs: HabitLog;
   weeklyReviews: WeeklyReview;
@@ -130,6 +146,7 @@ export const COLLECTIONS: CollectionName[] = [
   'timeEntries',
   'categories',
   'expenses',
+  'merchantRules',
   'habits',
   'habitLogs',
   'weeklyReviews',
@@ -143,6 +160,8 @@ export interface Meta {
   lastRolloverDay: DayKey | null;
   /** Wynik ostatniego rolloveru — do spokojnej informacji na ekranie DZIŚ. */
   lastRollover: { day: DayKey; moved: number } | null;
+  /** Czy kategorie startowe wydatków zostały już założone. */
+  expensesSeeded: boolean;
 }
 
 export const emptyData = (): Data => ({
@@ -150,6 +169,7 @@ export const emptyData = (): Data => ({
   timeEntries: [],
   categories: [],
   expenses: [],
+  merchantRules: [],
   habits: [],
   habitLogs: [],
   weeklyReviews: [],

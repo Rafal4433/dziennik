@@ -1,5 +1,5 @@
 import { openDB, type IDBPDatabase } from 'idb';
-import { COLLECTIONS, emptyData, type CollectionName, type Collections, type Data, type Meta } from './model';
+import { COLLECTIONS, emptyData, type CollectionName, type Category, type Collections, type Data, type Expense, type Meta } from './model';
 
 /**
  * Warstwa trwałości. Reszta aplikacji zna tylko interfejs `Repository`,
@@ -18,10 +18,28 @@ export interface Repository {
 export type Changes = { [K in CollectionName]?: Collections[K][] };
 
 const DB_NAME = 'dziennik';
-const DB_VERSION = 1;
+export const DB_VERSION = 2;
 const META_KEY = 'app';
 
-export const defaultMeta = (): Meta => ({ lastRolloverDay: null, lastRollover: null });
+export const defaultMeta = (): Meta => ({ lastRolloverDay: null, lastRollover: null, expensesSeeded: false });
+
+/** Uzupełnia pola dodane w v2 (rekordy ze starej bazy lub starej kopii). */
+export function normalizeExpense(e: any): Expense {
+  return {
+    ...e,
+    merchant: e.merchant ?? '',
+    source: e.source ?? 'manual',
+    capturedAt: e.capturedAt ?? null,
+    original: e.original ?? null,
+  };
+}
+
+export function normalizeCategory(c: any): Category {
+  return { ...c, junk: c.junk ?? false };
+}
+
+/** Kolekcje istniejące w bazie v1 (bez merchantRules). */
+const V1_COLLECTIONS = ['tasks', 'timeEntries', 'categories', 'expenses', 'habits', 'habitLogs', 'weeklyReviews'];
 
 export class IdbRepository implements Repository {
   private dbp: Promise<IDBPDatabase>;
@@ -30,12 +48,15 @@ export class IdbRepository implements Repository {
     this.dbp = openDB(name, DB_VERSION, {
       upgrade(db, oldVersion) {
         if (oldVersion < 1) {
-          for (const c of COLLECTIONS) {
+          for (const c of V1_COLLECTIONS) {
             const store = db.createObjectStore(c, { keyPath: 'id' });
             // Indeks pod przyszłą synchronizację: „daj mi wszystko zmienione od X”.
             store.createIndex('updatedAt', 'updatedAt');
           }
           db.createObjectStore('meta');
+        }
+        if (oldVersion < 2) {
+          db.createObjectStore('merchantRules', { keyPath: 'id' }).createIndex('updatedAt', 'updatedAt');
         }
       },
     });
@@ -50,6 +71,8 @@ export class IdbRepository implements Repository {
         (data as any)[c] = await tx.objectStore(c).getAll();
       }),
     );
+    data.expenses = data.expenses.map(normalizeExpense);
+    data.categories = data.categories.map(normalizeCategory);
     const meta = ((await tx.objectStore('meta').get(META_KEY)) as Meta | undefined) ?? defaultMeta();
     await tx.done;
     return { data, meta: { ...defaultMeta(), ...meta } };

@@ -3,7 +3,7 @@ import { getState, replaceAllData } from './store';
 import { todayKey } from '../lib/date';
 
 const FORMAT = 'dziennik-backup';
-const VERSION = 1;
+const VERSION = 2;
 
 export interface BackupFile {
   format: typeof FORMAT;

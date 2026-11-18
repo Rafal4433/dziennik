@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'preact/hooks';
-import { defaultMeta, type Changes, type Repository } from './db';
+import { defaultMeta, normalizeCategory, normalizeExpense, type Changes, type Repository } from './db';
 import { COLLECTIONS, emptyData, type CollectionName, type Data, type DayKey, type Meta, type Task, type TimeEntry } from './model';
 import { todayKey } from '../lib/date';
 import { newId } from '../lib/id';
@@ -269,6 +269,10 @@ export function seedForPreview(tasks: Task[], timeEntries: TimeEntry[]) {
 export async function replaceAllData(data: Data, meta: Meta) {
   const clean = emptyData();
   for (const c of COLLECTIONS) (clean as any)[c] = Array.isArray((data as any)[c]) ? (data as any)[c] : [];
+  // Kopie ze starszych wersji nie mają nowych pól — uzupełniamy je domyślnymi.
+  clean.expenses = clean.expenses.map(normalizeExpense);
+  clean.categories = clean.categories.map(normalizeCategory);
+  meta = { ...defaultMeta(), ...meta };
   await repo.replaceAll(clean, meta);
   state = { ...state, data: clean, meta };
   runRolloverIfNeeded();

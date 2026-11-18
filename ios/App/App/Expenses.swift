@@ -64,10 +64,10 @@ enum PendingQueue {
         try write(items)
     }
 
-    static func all() -> [[String: Any]] {
+    static func all() throws -> [[String: Any]] {
         lock.lock()
         defer { lock.unlock() }
-        return (try? read()) ?? []
+        return try read()
     }
 
     static func remove(ids: [String]) throws {
@@ -79,16 +79,26 @@ enum PendingQueue {
         if kept.count != items.count { try write(kept) }
     }
 
+    /// Brak pliku = pusta kolejka. Każdy inny błąd odczytu jest rzucany dalej, żeby wywołujący nie nadpisał
+    /// pliku, którego tylko chwilowo nie da się przeczytać (np. klucze ochrony danych niedostępne).
     private static func read() throws -> [[String: Any]] {
         let url = try fileURL
-        guard let data = try? Data(contentsOf: url), !data.isEmpty else { return [] }
+        let data: Data
+        do {
+            data = try Data(contentsOf: url)
+        } catch let error as CocoaError where error.code == .fileReadNoSuchFile {
+            return []
+        } catch let error as NSError where error.domain == NSPOSIXErrorDomain && error.code == Int(ENOENT) {
+            return []
+        }
+        if data.isEmpty { return [] }
         if let items = (try? JSONSerialization.jsonObject(with: data)) as? [[String: Any]] {
             return items
         }
-        // Uszkodzony plik odkładamy obok zamiast go nadpisywać — żaden zapis nie ginie po cichu.
+        // Uszkodzony plik odkładamy obok; jeśli się nie da, rzucamy — wtedy nic go nie nadpisze.
         let aside = url.deletingLastPathComponent()
-            .appendingPathComponent("pending-expenses.corrupt-\(Int(Date().timeIntervalSince1970)).json")
-        try? FileManager.default.moveItem(at: url, to: aside)
+            .appendingPathComponent("pending-expenses.corrupt-\(Int64(Date().timeIntervalSince1970 * 1000))-\(UUID().uuidString).json")
+        try FileManager.default.moveItem(at: url, to: aside)
         return []
     }
 
@@ -112,8 +122,15 @@ class PendingExpensesPlugin: CAPPlugin, CAPBridgedPlugin {
     ]
 
     @objc func list(_ call: CAPPluginCall) {
-        let items = JSTypes.coerceArrayToJSArray(PendingQueue.all()) ?? []
-        call.resolve(["items": items])
+        do {
+            guard let items = JSTypes.coerceArrayToJSArray(try PendingQueue.all()) else {
+                call.reject("Nie udało się odczytać kolejki")
+                return
+            }
+            call.resolve(["items": items])
+        } catch {
+            call.reject("Nie udało się odczytać kolejki", nil, error)
+        }
     }
 
     @objc func remove(_ call: CAPPluginCall) {

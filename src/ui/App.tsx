@@ -26,7 +26,7 @@ export function App() {
   useEffect(() => {
     // Płatności zapisane w tle przez Skróty (tylko w aplikacji natywnej). Błąd zapisu pokazuje store,
     // a rekordy zostają w kolejce do następnej próby.
-    const sync = () => void syncPending().catch(() => {});
+    const sync = () => void syncPending().catch((err) => console.warn('Synchronizacja kolejki płatności nie powiodła się', err));
     const onVisible = () => {
       if (document.visibilityState !== 'visible') return;
       checkDayChange();

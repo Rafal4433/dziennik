@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'preact/hooks';
 import { defaultMeta, normalizeCategory, normalizeExpense, normalizeHabit, normalizeHabitLog, type Changes, type Repository } from './db';
-import { COLLECTIONS, emptyData, type Category, type CollectionName, type Data, type DayKey, type Expense, type Habit, type MerchantRule, type Meta, type Task, type TimeEntry } from './model';
+import { logOn } from '../domain/habits';
+import { COLLECTIONS, emptyData, type Category, type CollectionName, type Data, type DayKey, type Expense, type Habit, type HabitFrequency, type HabitKind, type HabitLog, type MerchantRule, type Meta, type Task, type TimeEntry } from './model';
 import { fetchNbpRate } from './nbp';
 import { dayKeyOf, todayKey } from '../lib/date';
 import { toPLNGrosze } from '../domain/currency';
@@ -308,6 +309,53 @@ export function ensureDefaultHabits() {
   ];
   commit({ habits });
   setMeta({ ...state.meta, habitsSeeded: true });
+}
+
+/** Nowy żywy wpis nawyku (nowe id — także po tombstonie). */
+function newLog(habitId: string, day: DayKey, value: number | null, now: number): HabitLog {
+  return { id: newId(), createdAt: now, updatedAt: now, deletedAt: null, habitId, date: day, value };
+}
+
+/** Odhaczenie / odznaczenie nawyku `check`. Dla `measure` i nieznanego nawyku — nic. */
+export function toggleHabit(habitId: string, day: DayKey) {
+  const h = state.data.habits.find((x) => x.id === habitId && x.deletedAt === null);
+  if (!h || h.kind !== 'check') return;
+  const now = Date.now();
+  const existing = logOn(state.data.habitLogs, habitId, day);
+  commit({
+    habitLogs: [existing ? { ...existing, deletedAt: now, updatedAt: now } : newLog(habitId, day, null, now)],
+  });
+}
+
+/** Wpis wartości nawyku `measure`: null kasuje (tombstone), liczba nadpisuje lub tworzy wpis. */
+export function setMeasure(habitId: string, day: DayKey, value: number | null) {
+  const h = state.data.habits.find((x) => x.id === habitId && x.deletedAt === null);
+  if (!h || h.kind !== 'measure') return;
+  const now = Date.now();
+  const existing = logOn(state.data.habitLogs, habitId, day);
+  if (value === null) {
+    if (existing) commit({ habitLogs: [{ ...existing, deletedAt: now, updatedAt: now }] });
+    return;
+  }
+  commit({
+    habitLogs: [existing ? { ...existing, value, updatedAt: now } : newLog(habitId, day, value, now)],
+  });
+}
+
+export function addHabit(input: { name: string; kind: HabitKind; unit: string | null; frequency: HabitFrequency }) {
+  const name = input.name.trim();
+  if (!name) return;
+  const now = Date.now();
+  const order = state.data.habits.reduce((m, h) => Math.max(m, h.order), -1) + 1;
+  commit({
+    habits: [{ id: newId(), createdAt: now, updatedAt: now, deletedAt: null, name, kind: input.kind, unit: input.unit, frequency: input.frequency, order, archivedAt: null }],
+  });
+}
+
+export function updateHabit(id: string, patch: Partial<Pick<Habit, 'name' | 'kind' | 'unit' | 'frequency' | 'order' | 'archivedAt'>>) {
+  const h = state.data.habits.find((x) => x.id === id);
+  if (!h) throw new Error(`Brak nawyku ${id}`);
+  commit({ habits: [{ ...h, ...patch, updatedAt: Date.now() }] });
 }
 
 /* ───────── wydatki ───────── */

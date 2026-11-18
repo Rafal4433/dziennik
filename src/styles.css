@@ -66,6 +66,22 @@
 html {
   -webkit-text-size-adjust: 100%;
   -webkit-tap-highlight-color: transparent;
+  /* Bez przybliżania podwójnym stuknięciem i bez 300 ms zwłoki na tap; szczypanie dalej działa. */
+  touch-action: manipulation;
+}
+
+/* Pasek pod zegarem i notchem: przewijana treść nie wjeżdża pod pasek statusu.
+   W zwykłej przeglądarce wcięcie wynosi 0, więc pasek ma 0 px. */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  height: env(safe-area-inset-top, 0px);
+  background: var(--paper);
+  pointer-events: none;
 }
 
 body {

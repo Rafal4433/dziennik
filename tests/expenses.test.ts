@@ -2,6 +2,12 @@ import { describe, expect, it } from 'vitest';
 import type { Category, Expense, MerchantRule } from '../src/data/model';
 import {
   DEFAULT_CATEGORIES,
+  expenseAmountLabel,
+  groupByDay,
+  pendingExpenses,
+  pickableCategories,
+  shiftPeriod,
+  sortedCategories,
   inRange,
   isJunk,
   isPendingCategory,
@@ -131,5 +137,62 @@ describe('wydatki', () => {
     const list = [exp('2026-11-02', { amount: 5000 }), exp('2026-11-10', { amount: 3940 }), exp('2026-10-10', { amount: 999 })];
     expect(monthlyLimitUsage(list, cat('junk'), '2026-11-18')).toBeNull();
     expect(monthlyLimitUsage(list, cats[1], '2026-11-18')).toEqual({ spent: 8940, limit: 15000 });
+  });
+});
+
+describe('pomocnicze ekranu Wydatki', () => {
+  it('pickableCategories: bez zarchiwizowanych i usuniętych, syf pierwszy, dalej wg order', () => {
+    const list = [
+      cat('food', { order: 1 }),
+      cat('junk', { order: 5, junk: true }),
+      cat('home', { order: 0 }),
+      cat('old', { order: 2, archived: true }),
+      cat('gone', { order: 3, deletedAt: 1 }),
+    ];
+    expect(pickableCategories(list).map((c) => c.id)).toEqual(['junk', 'home', 'food']);
+    expect(sortedCategories(list).map((c) => c.id)).toEqual(['home', 'food', 'old', 'junk']);
+  });
+
+  it('pendingExpenses: tylko żywe bez kategorii, najnowsze pierwsze', () => {
+    const a = exp('2026-11-18', { id: 'a', categoryId: null, capturedAt: 100 });
+    const b = exp('2026-11-18', { id: 'b', categoryId: null, capturedAt: 300 });
+    const c = exp('2026-11-18', { id: 'c', categoryId: null, createdAt: 200 });
+    const done = exp('2026-11-18', { id: 'd' });
+    const dead = exp('2026-11-18', { id: 'e', categoryId: null, deletedAt: 1 });
+    expect(pendingExpenses([a, b, c, done, dead]).map((e) => e.id)).toEqual(['b', 'c', 'a']);
+  });
+
+  it('groupByDay: dni malejąco, sumy bez wpisów czekających na kurs', () => {
+    const list = [
+      exp('2026-11-17', { id: 'x', amount: 500 }),
+      exp('2026-11-18', { id: 'y', amount: 1299, createdAt: 1 }),
+      exp('2026-11-18', { id: 'z', amount: null, createdAt: 2 }),
+      exp('2026-11-10', { id: 'out' }),
+      exp('2026-11-18', { id: 'dead', deletedAt: 1 }),
+    ];
+    const g = groupByDay(list, { start: '2026-11-16', end: '2026-11-22' });
+    expect(g.map((d) => d.day)).toEqual(['2026-11-18', '2026-11-17']);
+    expect(g[0].items.map((e) => e.id)).toEqual(['z', 'y']);
+    expect(g[0].total).toBe(1299);
+  });
+
+  it('shiftPeriod: dzień, tydzień, miesiąc i powrót na dziś', () => {
+    const today = '2026-11-18';
+    expect(shiftPeriod(today, 'day', -1, today)).toBe('2026-11-17');
+    expect(shiftPeriod('2026-11-17', 'day', 1, today)).toBe(today);
+    expect(shiftPeriod(today, 'week', -1, today)).toBe('2026-11-11');
+    expect(shiftPeriod(today, 'month', -1, today)).toBe('2026-10-01');
+    expect(shiftPeriod('2026-10-01', 'month', 1, today)).toBe(today);
+    expect(shiftPeriod('2026-01-15', 'month', -1, today)).toBe('2025-12-01');
+    expect(shiftPeriod('2026-03-31', 'month', -1, today)).toBe('2026-02-01');
+  });
+
+  it('expenseAmountLabel: PLN, obca waluta z kursem i bez kursu', () => {
+    expect(expenseAmountLabel(exp('2026-11-18', { amount: 1299 }))).toBe('12,99 zł');
+    const eur = { amount: 12, currency: 'EUR', rate: 4.27, rateDate: '2026-11-18' };
+    expect(expenseAmountLabel(exp('2026-11-18', { amount: 5124, original: eur }))).toBe('12,00 EUR ≈ 51,24 zł');
+    expect(expenseAmountLabel(exp('2026-11-18', { amount: null, original: { ...eur, rate: null, rateDate: null } }))).toBe(
+      '12,00 EUR · kurs do pobrania',
+    );
   });
 });

@@ -804,6 +804,375 @@ button:disabled {
   padding-left: 14px;
 }
 
+/* ───────── wydatki ───────── */
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.day-step:disabled {
+  opacity: 0.3;
+}
+
+.period-head .day-step {
+  width: 44px;
+  height: 44px;
+}
+
+.period-head {
+  align-items: center;
+  padding-bottom: 2px;
+}
+
+.expense {
+  border-bottom: 1px solid var(--rule);
+}
+
+.expense-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: baseline;
+  column-gap: 14px;
+  width: 100%;
+  min-height: var(--row);
+  padding: 14px 0 13px;
+  transition: background-color var(--t);
+}
+
+.expense-line:active {
+  background: var(--paper-sunk);
+}
+
+.expense-name {
+  overflow-wrap: anywhere;
+}
+
+.expense-cat {
+  color: var(--ink-3);
+}
+
+.expense-time {
+  font-size: 14px;
+  color: var(--ink-3);
+}
+
+.expense-amount {
+  grid-column: 3;
+  max-width: 22ch;
+  text-align: right;
+  font-size: 15px;
+}
+
+.expense.is-open .expense-name {
+  font-weight: 600;
+}
+
+.expense-panel {
+  margin: 0 0 16px;
+  padding: 4px 0 4px 14px;
+  border-left: 2px solid var(--ink);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  animation: appear var(--t) ease-out;
+}
+
+.expense-panel .btn-text,
+.cat-actions .btn-text,
+.cat-archived .btn-text {
+  min-height: 44px;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chip {
+  min-height: 44px;
+  padding: 0 16px;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ink);
+  transition: background-color var(--t), border-color var(--t);
+}
+
+.chip:active {
+  background: var(--paper-sunk);
+}
+
+.chip.is-suggested {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+  color: var(--accent);
+}
+
+.chip.is-current {
+  background: var(--accent-wash);
+  border-color: var(--accent);
+}
+
+/* dodawanie wydatku */
+.add-expense {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-top: 12px;
+}
+
+.add-expense-row {
+  display: flex;
+  gap: 12px;
+}
+
+.add-expense-amount {
+  flex: 1;
+}
+
+.add-expense-amount input {
+  font-size: 20px;
+}
+
+.add-expense-currency {
+  flex: none;
+  width: 104px;
+}
+
+.add-expense .field-row {
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+}
+
+.field select {
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 10px;
+  background: var(--paper-sunk);
+  border: 1px solid transparent;
+  border-bottom-color: var(--ink-3);
+  border-radius: var(--radius) var(--radius) 0 0;
+  font-family: var(--font-mono);
+  font-size: 16px;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.expense-panel .field input,
+.add-expense .field input,
+.cat-editor .field input {
+  min-height: 44px;
+}
+
+.field input[type='date'] {
+  font-family: var(--font-mono);
+  font-size: 16px;
+}
+
+/* okres */
+.seg {
+  display: flex;
+  margin: 10px 0 4px;
+  border: 1px solid var(--ink);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.seg-btn {
+  flex: 1;
+  min-height: 44px;
+  text-align: center;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink-2);
+  transition: background-color var(--t), color var(--t);
+}
+
+.seg-btn + .seg-btn {
+  border-left: 1px solid var(--ink);
+}
+
+.seg-btn:active {
+  background: var(--paper-sunk);
+}
+
+.seg-btn.is-active {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.ledger-sub.has-limit {
+  align-items: center;
+}
+
+.limit {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.limit-bar {
+  display: block;
+  width: 120px;
+  height: 4px;
+  background: var(--rule);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.limit-fill {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+
+.limit.is-over .limit-fill {
+  background: var(--ink);
+}
+
+.limit-text {
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.limit.is-over .limit-text {
+  font-weight: 500;
+}
+
+.junk-streak dt {
+  font-family: var(--font-serif);
+  font-size: 20px;
+  font-weight: 500;
+  font-variation-settings: 'opsz' 36;
+}
+
+/* kategorie */
+.cat-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 0 6px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.cat-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: 12px;
+}
+
+.cat-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px 16px;
+  flex-wrap: wrap;
+}
+
+.cat-move {
+  display: inline-flex;
+  margin-left: auto;
+}
+
+.icon-btn {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  font-size: 18px;
+  color: var(--ink-2);
+  border-radius: var(--radius);
+}
+
+.icon-btn:active {
+  background: var(--paper-sunk);
+}
+
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.toggle input {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.cat-new {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px 0 6px;
+}
+
+.cat-archived {
+  margin-top: 18px;
+}
+
+.cat-archived .plain-item {
+  align-items: center;
+  padding: 0;
+}
+
+/* instrukcja Skrótu */
+.setup {
+  border-top: 1.5px solid var(--rule-strong);
+  border-bottom: 1px solid var(--rule);
+}
+
+.setup summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+}
+
+.setup summary::-webkit-details-marker {
+  display: none;
+}
+
+.setup-more {
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.setup[open] .setup-more {
+  visibility: hidden;
+}
+
+.setup-steps {
+  margin: 0;
+  padding: 0 0 0 22px;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.setup-steps li {
+  padding: 4px 0;
+}
+
+.setup .hint {
+  margin-bottom: 14px;
+}
+
 /* ───────── nawigacja dolna ───────── */
 
 .tabbar {

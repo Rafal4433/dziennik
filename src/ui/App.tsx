@@ -4,6 +4,7 @@ import { checkDayChange, useAppState } from '../data/store';
 import { syncPending } from '../native/pending';
 import { TodayScreen } from './screens/Today';
 import { TasksScreen } from './screens/Tasks';
+import { ExpensesScreen } from './screens/Expenses';
 import { PlaceholderScreen } from './screens/Placeholder';
 import { DataSection } from './screens/DataSection';
 
@@ -59,7 +60,7 @@ export function App() {
       {s.saveError && <p class="note note-top">{s.saveError}</p>}
       {tab === 'today' && <TodayScreen day={day} setDay={setDay} />}
       {tab === 'tasks' && <TasksScreen openDay={openDay} />}
-      {tab === 'expenses' && <PlaceholderScreen title="Wydatki" />}
+      {tab === 'expenses' && <ExpensesScreen />}
       {tab === 'habits' && <PlaceholderScreen title="Nawyki" />}
       {tab === 'stats' && (
         <PlaceholderScreen title="Statystyki">

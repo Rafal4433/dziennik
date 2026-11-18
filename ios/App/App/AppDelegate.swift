@@ -48,6 +48,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 class ViewController: CAPBridgeViewController {
     override func capacitorDidLoad() {
         super.capacitorDidLoad()
+        // Lokalna wtyczka kolejki płatności z Expenses.swift (nie jest pakietem npm, więc rejestrujemy ją ręcznie).
+        bridge?.registerPluginInstance(PendingExpensesPlugin())
         let paper = UIColor(named: "Paper") ?? .systemBackground
         webView?.isOpaque = false
         webView?.backgroundColor = paper

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'preact/hooks';
 import type { DayKey } from '../data/model';
 import { checkDayChange, useAppState } from '../data/store';
+import { syncPending } from '../native/pending';
 import { TodayScreen } from './screens/Today';
 import { TasksScreen } from './screens/Tasks';
 import { PlaceholderScreen } from './screens/Placeholder';
@@ -23,7 +24,15 @@ export function App() {
   const [viewDay, setViewDay] = useState<DayKey | null>(null);
 
   useEffect(() => {
-    const onVisible = () => document.visibilityState === 'visible' && checkDayChange();
+    // Płatności zapisane w tle przez Skróty (tylko w aplikacji natywnej). Błąd zapisu pokazuje store,
+    // a rekordy zostają w kolejce do następnej próby.
+    const sync = () => void syncPending().catch(() => {});
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return;
+      checkDayChange();
+      sync();
+    };
+    sync();
     document.addEventListener('visibilitychange', onVisible);
     const id = setInterval(checkDayChange, 60_000);
     return () => {

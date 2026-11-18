@@ -71,7 +71,7 @@ export function TodayScreen({ day, setDay, goToExpenses }: Props) {
         <h1 class="page-title">{capitalize(formatDayLong(day))}</h1>
       </header>
 
-      <ExpiryNote now={now} />
+      {isToday && <ExpiryNote now={now} />}
 
       {rolloverNote > 0 && (
         <p class="note">

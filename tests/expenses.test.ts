@@ -69,6 +69,30 @@ describe('wydatki', () => {
     expect(suggestCategory('Inny', [rule(key, 'food')], cats)).toBeNull();
   });
 
+  it('suggestCategory dopasowuje różne oddziały sklepu (prefiks tokenów, w obie strony)', () => {
+    const krakow = merchantKey('ŻABKA Z1234 KRAKÓW');
+    const plain = merchantKey('Zabka Z5678');
+    expect(krakow).toBe('zabka krakow');
+    expect(plain).toBe('zabka');
+    expect(suggestCategory('Zabka Z5678', [rule(krakow, 'food')], cats)).toBe('food');
+    expect(suggestCategory('ŻABKA Z1234 KRAKÓW', [rule(plain, 'food')], cats)).toBe('food');
+    // tylko pełne tokeny: „zab” nie jest prefiksem tokenowym „zabka”
+    expect(suggestCategory('Zab', [rule(plain, 'food')], cats)).toBeNull();
+    // nadal ignoruje usunięte reguły i zarchiwizowane kategorie
+    expect(suggestCategory('Zabka Z5678', [rule(krakow, 'food', { deletedAt: 5 })], cats)).toBeNull();
+    expect(suggestCategory('Zabka Z5678', [rule(krakow, 'food')], [cat('food', { archived: true })])).toBeNull();
+  });
+
+  it('suggestCategory: dokładne trafienie, potem najdłuższy wspólny prefiks, potem najnowsza', () => {
+    const c3 = [...cats, cat('other')];
+    // dokładne wygrywa z nowszym prefiksowym
+    expect(suggestCategory('Zabka Krakow', [rule('zabka krakow', 'food', { updatedAt: 1 }), rule('zabka', 'other', { updatedAt: 9 })], c3)).toBe('food');
+    // dłuższy wspólny prefiks wygrywa z nowszym krótszym
+    expect(suggestCategory('Zabka Krakow Rynek', [rule('zabka krakow', 'food', { updatedAt: 1 }), rule('zabka', 'other', { updatedAt: 9 })], c3)).toBe('food');
+    // przy równym prefiksie — najnowsza reguła
+    expect(suggestCategory('Zabka', [rule('zabka krakow', 'food', { updatedAt: 1 }), rule('zabka warszawa', 'other', { updatedAt: 9 })], c3)).toBe('other');
+  });
+
   it('periodRange i inRange', () => {
     expect(periodRange('2026-11-18', 'day')).toEqual({ start: '2026-11-18', end: '2026-11-18' });
     expect(periodRange('2026-11-18', 'week')).toEqual({ start: '2026-11-16', end: '2026-11-22' });

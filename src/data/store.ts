@@ -284,6 +284,8 @@ export async function replaceAllData(data: Data, meta: Meta) {
   await repo.replaceAll(clean, meta);
   state = { ...state, data: clean, meta };
   runRolloverIfNeeded();
+  // Kopia bez kategorii (np. v1) nie może zostawić aplikacji bez żadnej.
+  ensureDefaultCategories();
   emit();
 }
 

@@ -14,10 +14,11 @@ let inFlight: Promise<number> | null = null;
 
 /**
  * Pobiera kolejkę natywną, zapisuje ją w IndexedDB i dopiero potem usuwa przyjęte rekordy z kolejki.
- * Zwraca liczbę przyjętych płatności. Poza aplikacją natywną (PWA) nic nie robi.
+ * Zwraca liczbę przyjętych płatności. Poza aplikacją natywną (PWA) nie dotyka wtyczki,
+ * tylko ponawia pobranie kursów NBP dla wpisów, które na nie czekają.
  */
 export function syncPending(): Promise<number> {
-  if (!Capacitor.isNativePlatform()) return Promise.resolve(0);
+  if (!Capacitor.isNativePlatform()) return resolvePendingRates().then(() => 0);
   // Start i powrót na pierwszy plan mogą zbiec się w czasie — jedna synchronizacja naraz.
   inFlight ??= doSync().finally(() => {
     inFlight = null;

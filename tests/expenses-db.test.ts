@@ -44,4 +44,22 @@ describe('wydatki: baza v2 i kopia JSON', () => {
     await importJSON(file);
     expect(getState().data.merchantRules).toEqual([]);
   });
+
+  it('przywrócenie kopii v1 bez kategorii zasiewa kategorie startowe', async () => {
+    const { merchantRules, categories, ...v1data } = emptyData();
+    const file = parseBackup(
+      JSON.stringify({
+        format: 'dziennik-backup', version: 1, exportedAt: 'x',
+        meta: { lastRolloverDay: null, lastRollover: null }, data: v1data,
+      }),
+    );
+    await init(new IdbRepository('imp-2'));
+    await importJSON(file);
+    const names = getState().data.categories.filter((c) => c.deletedAt === null).map((c) => c.name);
+    expect(names).toEqual(['Syf', 'Jedzenie', 'Transport', 'Dom', 'Rozrywka', 'Inne']);
+    expect(getState().meta.expensesSeeded).toBe(true);
+    // zapisane trwale
+    const { data } = await new IdbRepository('imp-2').loadAll();
+    expect(data.categories).toHaveLength(6);
+  });
 });

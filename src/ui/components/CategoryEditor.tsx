@@ -48,6 +48,7 @@ export function CategoryEditor() {
 }
 
 function CategoryItem({ category: c, first, last, onMove }: { category: Category; first: boolean; last: boolean; onMove: (dir: -1 | 1) => void }) {
+  const [name, setName] = useState(c.name);
   const [limit, setLimit] = useState(limitField(c.monthlyLimit));
   const [badLimit, setBadLimit] = useState(false);
   return (
@@ -56,12 +57,15 @@ function CategoryItem({ category: c, first, last, onMove }: { category: Category
         <label class="field">
           <span class="field-label">Nazwa</span>
           <input
-            value={c.name}
+            value={name}
             enterKeyHint="done"
+            onInput={(e) => setName(e.currentTarget.value)}
             onChange={(e) => {
+              // „change” przychodzi też przy utracie fokusu — wtedy zatwierdzamy albo cofamy pustą nazwę.
               const v = e.currentTarget.value.trim();
-              if (v && v !== c.name) updateCategory(c.id, { name: v });
-              else e.currentTarget.value = c.name;
+              if (!v) return setName(c.name);
+              setName(v);
+              if (v !== c.name) updateCategory(c.id, { name: v });
             }}
           />
         </label>

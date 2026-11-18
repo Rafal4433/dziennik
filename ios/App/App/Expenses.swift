@@ -16,8 +16,9 @@ struct AddExpenseIntent: AppIntent {
     @Parameter(title: "Kwota")
     var amount: IntentCurrencyAmount
 
+    // Opcjonalny: wymagany parametr bez wartości z automatyzacji kazałby Skrótom pytać przy kasie.
     @Parameter(title: "Sklep")
-    var merchant: String
+    var merchant: String?
 
     @Parameter(title: "Karta")
     var card: String?
@@ -28,7 +29,7 @@ struct AddExpenseIntent: AppIntent {
             "capturedAt": Int64((Date().timeIntervalSince1970 * 1000).rounded()),
             "amount": NSDecimalNumber(decimal: amount.amount).doubleValue,
             "currency": amount.currencyCode.uppercased(),
-            "merchant": merchant,
+            "merchant": merchant ?? "",
             "card": card ?? "",
         ])
         return .result()

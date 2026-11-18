@@ -61,10 +61,31 @@ describe('syncPending', () => {
     expect(mocks.remove).not.toHaveBeenCalled();
   });
 
-  it('poza aplikacją natywną nic nie robi', async () => {
+  it('poza aplikacją natywną nie dotyka wtyczki, ale ponawia kursy NBP', async () => {
+    mocks.native = true;
+    mocks.items = [{ ...pay('eur'), currency: 'EUR', amount: 10 }];
+    const fail = vi.fn(async () => { throw new TypeError('offline'); });
+    vi.stubGlobal('fetch', fail);
+    try {
+      await syncPending();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    expect(getState().data.expenses.find((e) => e.id === 'eur')?.amount).toBeNull();
+
     mocks.native = false;
-    mocks.items = [pay('a')];
-    expect(await syncPending()).toBe(0);
+    mocks.list.mockClear();
+    mocks.remove.mockClear();
+    const ok = vi.fn(async () => ({ ok: true, status: 200, json: async () => ({ rates: [{ effectiveDate: '2026-11-17', mid: 4.25 }] }) }) as Response);
+    vi.stubGlobal('fetch', ok);
+    try {
+      expect(await syncPending()).toBe(0);
+    } finally {
+      vi.unstubAllGlobals();
+    }
     expect(mocks.list).not.toHaveBeenCalled();
+    expect(mocks.remove).not.toHaveBeenCalled();
+    expect(ok).toHaveBeenCalled();
+    expect(getState().data.expenses.find((e) => e.id === 'eur')?.amount).toBe(4250);
   });
 });

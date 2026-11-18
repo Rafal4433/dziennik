@@ -43,16 +43,31 @@ export function merchantKey(name: string): string {
     .join(' ');
 }
 
-/** Podpowiedź kategorii dla sklepu — tylko z żywej reguły i żywej, niezarchiwizowanej kategorii. */
+/**
+ * Podpowiedź kategorii dla sklepu — tylko z żywej reguły i żywej, niezarchiwizowanej kategorii.
+ * Najpierw dokładny klucz; inaczej reguła, której tokeny są prefiksem tokenów sklepu (albo odwrotnie),
+ * np. „zabka” ↔ „zabka krakow”. Wygrywa najdłuższy wspólny prefiks, potem najnowsza reguła.
+ */
 export function suggestCategory(merchant: string, rules: MerchantRule[], categories: Category[]): string | null {
   const key = merchantKey(merchant);
   if (!key) return null;
-  const rule = rules
-    .filter((r) => isLive(r) && r.merchantKey === key)
-    .sort((a, b) => b.updatedAt - a.updatedAt)[0];
+  const live = rules.filter(isLive);
+  const rule = live.filter((r) => r.merchantKey === key).sort((a, b) => b.updatedAt - a.updatedAt)[0] ?? bestPrefixRule(key, live);
   if (!rule) return null;
   const c = categories.find((x) => x.id === rule.categoryId);
   return c && isLive(c) && !c.archived ? c.id : null;
+}
+
+function bestPrefixRule(key: string, rules: MerchantRule[]): MerchantRule | null {
+  const tokens = key.split(' ');
+  let best: { rule: MerchantRule; len: number } | null = null;
+  for (const r of rules) {
+    const rt = r.merchantKey.split(' ').filter(Boolean);
+    const len = Math.min(rt.length, tokens.length);
+    if (!len || !rt.slice(0, len).every((t, i) => t === tokens[i])) continue;
+    if (!best || len > best.len || (len === best.len && r.updatedAt > best.rule.updatedAt)) best = { rule: r, len };
+  }
+  return best?.rule ?? null;
 }
 
 export type Period = 'day' | 'week' | 'month';

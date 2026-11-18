@@ -21,7 +21,7 @@ otworzyć w przeglądarce telefonu i wybrać „Dodaj do ekranu głównego”. P
 |---|---|---|
 | 1 | Ekran DZIŚ, zadania: statusy, stoper, ręczny czas, szacunek, najmniejsza wersja, rollover z licznikiem, pytanie po 3 przeniesieniach, podsumowanie dnia, kopia JSON | **gotowe** |
 | 2 | Wydatki: szybkie dodawanie, Apple Pay przez Skróty, kategorie, widok dzień/tydzień/miesiąc, limity, licznik dni bez syfu | **gotowe** |
-| 3 | Nawyki: częstotliwości, odhaczanie z DZIŚ, siatka kalendarza, % z 30 dni | |
+| 3 | Nawyki: częstotliwości, odhaczanie i wpis wartości z DZIŚ, seria, siatka kalendarza, % z 30 dni, wykres wagi z trendem | **gotowe** |
 | 4 | Statystyki i cotygodniowy przegląd, eksport CSV | |
 
 ## Model danych (`src/data/model.ts`)
@@ -39,8 +39,9 @@ Category      name, monthlyLimit? (gr), order, archived, junk (syf)
 Expense       amount (gr | null = czeka na kurs), categoryId → Category | null (= do uzupełnienia), note, date,
               merchant, source: manual|applepay, original? {amount, currency, rate?, rateDate?}
 MerchantRule  sklep (znormalizowany) → kategoria; podpowiada kategorię przy kolejnych płatnościach
-Habit         name, frequency: daily | timesPerWeek(n) | weekdays([1..7]), order, archivedAt?
-HabitLog      habitId → Habit, date                (jedno odhaczenie w danym dniu)
+Habit         name, kind: check|measure, unit? (np. 'kg'), frequency: daily | timesPerWeek(n) | weekdays([1..7]),
+              order, archivedAt?
+HabitLog      habitId → Habit, date, value? (liczba dla measure) — jeden żywy wpis na nawyk i dzień
 WeeklyReview  weekStart (poniedziałek), wentWell, blockers, experiment
 ```
 
@@ -68,6 +69,18 @@ Kategorie z `junk: true` to „syf”. Ekran Wydatki i Dziś pokazują serię dn
 
 Wersja na iPhone'a (Capacitor): `npm run build:ios` buduje stronę bez service workera i robi `cap sync ios`; potem uruchomienie z Xcode.
 Darmowe konto deweloperskie podpisuje aplikację na 7 dni — na dwa dni przed końcem Dziś pokazuje przypomnienie, żeby podłączyć telefon do Maca i zainstalować ją ponownie.
+
+## Nawyki
+
+Na start są dwa nawyki: „Witaminy” (odhaczenie) i „Ważenie się” (wartość w kg). Na **Dziś** odhaczenie to jedno stuknięcie w wiersz,
+a waga to wpisanie liczby („82,4” albo „82.4”) i ✓ lub Enter; stuknięcie w zapisaną wartość pozwala ją poprawić, pusta wartość usuwa wpis.
+Wartość spoza 20–400 kg nie zapisuje się, zostaje tylko spokojna podpowiedź. Minione dni można uzupełnić wstecz.
+
+Ekran **Nawyki** pokazuje dla każdego nawyku częstotliwość, serię, % z 30 dni i siatkę 5 tygodni (kropka = wykonany,
+pusty kontur = zaplanowany bez wpisu, bez czerwieni). Pod nawykiem z wartością jest wykres z 90 dni (czyste SVG)
+i trend: ostatni pomiar, średnia 7 dni i zmiana względem średniej z poprzednich 7 dni („bez zmian” przy różnicy poniżej 0,1).
+Przez „Edytuj” dodaje się nawyki (odhaczenie albo wartość z jednostką; codziennie, X razy w tygodniu lub wybrane dni),
+zmienia kolejność i archiwizuje — historia zarchiwizowanych zostaje i można je przywrócić.
 
 ## Architektura
 

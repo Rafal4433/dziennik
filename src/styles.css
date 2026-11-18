@@ -1173,6 +1173,307 @@ button:disabled {
   margin-bottom: 14px;
 }
 
+/* ───────── nawyki ───────── */
+
+.habit-row {
+  border-bottom: 1px solid var(--rule);
+}
+
+.habit-toggle {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-height: var(--row);
+  padding: 8px 0;
+  transition: background-color var(--t);
+}
+
+.habit-toggle:active {
+  background: var(--paper-sunk);
+}
+
+.habit-toggle .check-box,
+.habit-label .check-box {
+  flex: none;
+}
+
+.habit-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 17px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.habit-side,
+.habit-meta {
+  font-size: 13px;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+
+.habit-value {
+  font-size: 16px;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.habit-measure {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: var(--row);
+  padding: 4px 0;
+}
+
+.habit-label {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.habit-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.habit-entry {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: -10px;
+}
+
+.habit-input {
+  width: 84px;
+  min-height: 44px;
+  padding: 8px 10px;
+  background: var(--paper-sunk);
+  border: 1px solid transparent;
+  border-bottom-color: var(--ink-3);
+  border-radius: var(--radius) var(--radius) 0 0;
+  font-size: 17px;
+  text-align: right;
+  transition: border-color var(--t);
+}
+
+.habit-input:focus {
+  outline: none;
+  border-bottom-color: var(--accent);
+}
+
+.habit-unit {
+  font-size: 15px;
+  color: var(--ink-2);
+}
+
+.habit-save {
+  color: var(--accent);
+  font-size: 20px;
+}
+
+.habit-hint {
+  margin: -2px 0 10px 33px;
+}
+
+/* karta na ekranie Nawyki */
+.habit-card {
+  padding: 16px 0 18px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.habit-card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.habit-card-name {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-weight: 500;
+  font-size: 20px;
+  line-height: 1.25;
+  font-variation-settings: 'opsz' 36;
+  overflow-wrap: anywhere;
+}
+
+.habit-card-pct {
+  flex: none;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.habit-card-pct .num {
+  font-size: 16px;
+}
+
+.habit-card-meta {
+  margin: 2px 0 12px;
+  font-size: 14px;
+  color: var(--ink-2);
+}
+
+.habit-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 32px);
+  gap: 2px 6px;
+}
+
+.habit-grid-head {
+  padding-bottom: 2px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-align: center;
+  color: var(--ink-3);
+}
+
+.habit-cell {
+  height: 24px;
+  display: grid;
+  place-items: center;
+}
+
+.habit-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.habit-cell.is-done .habit-dot {
+  background: var(--accent);
+}
+
+.habit-cell.is-missed .habit-dot {
+  border: 1.5px solid var(--rule);
+}
+
+.habit-cell.is-pending .habit-dot {
+  border: 1.5px solid var(--ink-3);
+}
+
+.habit-cell.is-off .habit-dot {
+  width: 3px;
+  height: 3px;
+  background: var(--rule);
+}
+
+/* wykres wartości */
+.chart {
+  margin-top: 16px;
+}
+
+.chart-figure {
+  margin: 0;
+}
+
+.chart-plot {
+  position: relative;
+  padding-left: 60px;
+}
+
+.chart-plot svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.chart-rule {
+  stroke: var(--rule);
+  stroke-width: 1;
+}
+
+.chart-line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.chart-point {
+  fill: var(--accent);
+  stroke: var(--paper);
+  stroke-width: 1;
+}
+
+.chart-y {
+  position: absolute;
+  left: 0;
+  transform: translateY(-50%);
+  font-size: 12px;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+
+.chart-x {
+  display: flex;
+  justify-content: space-between;
+  margin: 4px 0 0 60px;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+.chart-empty {
+  margin: 0;
+  padding: 10px 0;
+  font-size: 15px;
+  color: var(--ink-3);
+}
+
+.chart-summary {
+  margin: 10px 0 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+
+/* edycja nawyków */
+.habit-editor .cat-item {
+  gap: 12px;
+}
+
+.habit-editor .field input,
+.habit-editor .btn {
+  min-height: 44px;
+}
+
+.habit-editor .seg {
+  margin: 2px 0 0;
+}
+
+.habit-editor .seg-btn {
+  padding: 4px 6px;
+  line-height: 1.2;
+}
+
+.habit-unit-field {
+  max-width: 160px;
+}
+
+.habit-chips {
+  margin-top: 8px;
+  gap: 6px;
+}
+
+.habit-chips .chip {
+  min-width: 44px;
+  padding: 0 10px;
+  justify-content: center;
+}
+
+.habit-new {
+  gap: 12px;
+}
+
 /* ───────── nawigacja dolna ───────── */
 
 .tabbar {

@@ -13,9 +13,14 @@ export function logOn(logs: HabitLog[], habitId: string, day: DayKey): HabitLog 
   return logs.find((l) => l.habitId === habitId && l.date === day && isLive(l));
 }
 
-/** Dzień utworzenia nawyku (Europe/Warsaw). */
-function createdDay(habit: Habit): DayKey {
-  return dayKeyOf(habit.createdAt);
+/**
+ * Początek historii nawyku: dzień utworzenia (Europe/Warsaw) albo wcześniejszy pierwszy wpis
+ * (wpisy dopisane wstecz z „Dziś”). Przed tym dniem nic nie liczy się jako zaplanowane.
+ */
+function createdDay(habit: Habit, logs: HabitLog[]): DayKey {
+  let start = dayKeyOf(habit.createdAt);
+  for (const l of logs) if (l.habitId === habit.id && isLive(l) && l.date < start) start = l.date;
+  return start;
 }
 
 /** Liczba żywych wpisów w tygodniu (pon–nd) zawierającym `day`. */
@@ -47,10 +52,10 @@ export function isDue(habit: Habit, logs: HabitLog[], day: DayKey): boolean {
 /**
  * Seria. daily/weekdays: kolejne zaplanowane dni z wpisem wstecz od wczoraj, plus dziś
  * jeśli już jest wpis (brak wpisu dziś nie przerywa serii). timesPerWeek: kolejne pełne
- * tygodnie z >= n wpisami, plus bieżący, jeśli już ma >= n. Nie sięga przed utworzenie.
+ * tygodnie z >= n wpisami, plus bieżący, jeśli już ma >= n. Nie sięga przed początek historii (utworzenie lub pierwszy wpis).
  */
 export function streak(habit: Habit, logs: HabitLog[], today: DayKey): number {
-  const start = createdDay(habit);
+  const start = createdDay(habit, logs);
   const f = habit.frequency;
   let count = 0;
 
@@ -84,7 +89,7 @@ export function streak(habit: Habit, logs: HabitLog[], today: DayKey): number {
  */
 export function completion30(habit: Habit, logs: HabitLog[], today: DayKey): number | null {
   const first = addDays(today, -29);
-  const created = createdDay(habit);
+  const created = createdDay(habit, logs);
   const start = first > created ? first : created;
   const end = logOn(logs, habit.id, today) ? today : addDays(today, -1);
   if (end < start) return null;
@@ -123,7 +128,7 @@ export function calendarWeeks(
   today: DayKey,
   weeks = 5,
 ): { day: DayKey; state: CalendarState }[][] {
-  const created = createdDay(habit);
+  const created = createdDay(habit, logs);
   const first = addDays(weekStart(today), -7 * (weeks - 1));
   const out: { day: DayKey; state: CalendarState }[][] = [];
   for (let w = 0; w < weeks; w++) {
@@ -200,4 +205,28 @@ export function frequencyLabel(f: HabitFrequency): string {
 export function formatMeasure(value: number, unit: string | null): string {
   const num = value.toLocaleString('pl-PL', { minimumFractionDigits: 1, maximumFractionDigits: 1, useGrouping: false });
   return unit ? `${num} ${unit}` : num;
+}
+
+/** Nawyki do pokazania na „Dziś” i w liście: żywe, niezarchiwizowane, wg `order`. */
+export function activeHabits(habits: Habit[]): Habit[] {
+  return habits.filter((h) => isLive(h) && h.archivedAt === null).sort((a, b) => a.order - b.order);
+}
+
+/**
+ * Zmiana tydzień do tygodnia słownie: „bez zmian” przy |Δ| < 0,1, inaczej „−0,5 kg w tydzień”
+ * (prawdziwy minus, przecinek dziesiętny). null, gdy trendu brak.
+ */
+export function trendLabel(delta: number | null, unit: string | null): string | null {
+  if (delta === null) return null;
+  if (Math.abs(delta) < 0.1) return 'bez zmian';
+  return `${delta < 0 ? '−' : '+'}${formatMeasure(Math.abs(delta), unit)} w tydzień`;
+}
+
+/** Punkty wykresu: żywe wpisy z wartością z ostatnich `days` dni (dziś włącznie), rosnąco po dniu. */
+export function measurePoints(logs: HabitLog[], habitId: string, today: DayKey, days = 90): { day: DayKey; value: number }[] {
+  const from = addDays(today, -(days - 1));
+  return logsFor(logs, habitId)
+    .filter((l) => l.value !== null && l.date >= from && l.date <= today)
+    .map((l) => ({ day: l.date, value: l.value as number }))
+    .sort((a, b) => (a.day < b.day ? -1 : a.day > b.day ? 1 : 0));
 }

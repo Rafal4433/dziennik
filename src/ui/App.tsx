@@ -5,6 +5,7 @@ import { syncPending } from '../native/pending';
 import { TodayScreen } from './screens/Today';
 import { TasksScreen } from './screens/Tasks';
 import { ExpensesScreen } from './screens/Expenses';
+import { HabitsScreen } from './screens/Habits';
 import { PlaceholderScreen } from './screens/Placeholder';
 import { DataSection } from './screens/DataSection';
 
@@ -61,7 +62,7 @@ export function App() {
       {tab === 'today' && <TodayScreen day={day} setDay={setDay} goToExpenses={() => setTab('expenses')} />}
       {tab === 'tasks' && <TasksScreen openDay={openDay} />}
       {tab === 'expenses' && <ExpensesScreen />}
-      {tab === 'habits' && <PlaceholderScreen title="Nawyki" />}
+      {tab === 'habits' && <HabitsScreen />}
       {tab === 'stats' && (
         <PlaceholderScreen title="Statystyki">
           <DataSection />

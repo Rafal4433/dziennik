@@ -11,6 +11,8 @@ import { DaySummary } from '../components/DaySummary';
 import { AddExpense } from '../components/AddExpense';
 import { ExpenseRow } from '../components/ExpenseRow';
 import { ExpiryNote } from '../components/ExpiryNote';
+import { HabitRow } from '../components/HabitRow';
+import { activeHabits, isDue, logOn } from '../../domain/habits';
 import { inRange, junkTodayLine, pendingExpenses, pickableCategories, totals } from '../../domain/expenses';
 
 /** Wieczorne podsumowanie pokazuje się samo od tej godziny. */
@@ -39,6 +41,7 @@ export function TodayScreen({ day, setDay, goToExpenses }: Props) {
   const rel = relativeDayName(day, today);
   const isToday = day === today;
   const isPast = day < today;
+  const isFuture = day > today;
   const showSummary = isPast || (isToday && (summaryOpen || hourOf(now) >= EVENING_HOUR));
   const rolloverNote = isToday && s.meta.lastRollover?.day === today && s.meta.lastRollover.moved > 0 ? s.meta.lastRollover.moved : 0;
 
@@ -49,6 +52,11 @@ export function TodayScreen({ day, setDay, goToExpenses }: Props) {
   const pendingCount = pendingExpenses(expenses).length;
   const junkLine = isToday ? junkTodayLine(expenses, allCategories, today) : null;
   const [openExpense, setOpenExpense] = useState<string | null>(null);
+
+  const { habits, habitLogs } = s.data;
+  const liveHabits = activeHabits(habits);
+  const dueHabits = liveHabits.filter((h) => isDue(h, habitLogs, day));
+  const habitsDone = dueHabits.filter((h) => logOn(habitLogs, h.id, day)).length;
 
   const swipe = useSwipe(
     () => setDay(addDays(day, 1)),
@@ -109,16 +117,24 @@ export function TodayScreen({ day, setDay, goToExpenses }: Props) {
         <AddTask date={day} placeholder={isToday ? 'Dodaj zadanie' : `Dodaj zadanie na ${rel?.toLowerCase() ?? 'ten dzień'}`} />
       </section>
 
-      {!isPast && (
-        <>
-          <section class="section">
-            <header class="section-head">
-              <h2>Nawyki</h2>
-            </header>
-            <p class="empty">Ten moduł powstanie w kolejnym kroku.</p>
-          </section>
-
-        </>
+      {!isFuture && (
+        <section class="section">
+          <header class="section-head">
+            <h2>Nawyki</h2>
+            <span class="section-stat num">{dueHabits.length > 0 && `${habitsDone}/${dueHabits.length}`}</span>
+          </header>
+          {dueHabits.length === 0 ? (
+            <p class="empty">
+              {liveHabits.length === 0 ? 'Brak nawyków — dodasz je na karcie Nawyki.' : isToday ? 'Na dziś nic zaplanowanego.' : 'Tego dnia nic nie było zaplanowane.'}
+            </p>
+          ) : (
+            <ul class="plain-list">
+              {dueHabits.map((h) => (
+                <HabitRow key={`${h.id}:${day}`} habit={h} logs={habitLogs} day={day} today={today} />
+              ))}
+            </ul>
+          )}
+        </section>
       )}
 
       <section class="section">

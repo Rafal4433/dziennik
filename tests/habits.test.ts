@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { DayKey, Habit, HabitLog } from '../src/data/model';
 import {
+  activeHabits,
   calendarWeeks,
   completion30,
   formatMeasure,
@@ -8,8 +9,10 @@ import {
   isDue,
   logOn,
   logsFor,
+  measurePoints,
   parseMeasure,
   streak,
+  trendLabel,
   weightTrend,
 } from '../src/domain/habits';
 
@@ -209,5 +212,59 @@ describe('frequencyLabel / formatMeasure', () => {
     expect(formatMeasure(82.4, 'kg')).toBe('82,4 kg');
     expect(formatMeasure(82, 'kg')).toBe('82,0 kg');
     expect(formatMeasure(7.5, null)).toBe('7,5');
+  });
+});
+
+describe('activeHabits / trendLabel / measurePoints', () => {
+  it('pomija zarchiwizowane i usunięte, sortuje wg order', () => {
+    const list = activeHabits([
+      habit({ id: 'b', order: 2 }),
+      habit({ id: 'a', order: 0 }),
+      habit({ id: 'x', order: 1, archivedAt: CREATED }),
+      habit({ id: 'y', order: 1, deletedAt: CREATED }),
+    ]);
+    expect(list.map((h) => h.id)).toEqual(['a', 'b']);
+  });
+
+  it('trend słownie: bez zmian przy |Δ| < 0,1, minus jako „−”', () => {
+    expect(trendLabel(null, 'kg')).toBeNull();
+    expect(trendLabel(0.05, 'kg')).toBe('bez zmian');
+    expect(trendLabel(-0.09, 'kg')).toBe('bez zmian');
+    expect(trendLabel(-0.5, 'kg')).toBe('−0,5 kg w tydzień');
+    expect(trendLabel(0.3, 'kg')).toBe('+0,3 kg w tydzień');
+  });
+
+  it('punkty z 90 dni, bez pustych wartości i tombstone’ów, rosnąco', () => {
+    const logs = [
+      log('2026-11-19', { value: 81.6 }),
+      log('2026-11-10', { value: 82.0 }),
+      log('2026-08-21', { value: 85.0 }), // dziś − 90 → poza oknem
+      log('2026-08-22', { value: 84.0 }), // dziś − 89 → w oknie
+      log('2026-11-12', { value: 83.0, deletedAt: CREATED }),
+      log('2026-11-13', { value: null }),
+      log('2026-11-14', { habitId: 'h2', value: 70 }),
+    ];
+    expect(measurePoints(logs, 'h1', TODAY)).toEqual([
+      { day: '2026-08-22', value: 84.0 },
+      { day: '2026-11-10', value: 82.0 },
+      { day: '2026-11-19', value: 81.6 },
+    ]);
+  });
+});
+
+describe('wpisy dopisane sprzed dnia utworzenia', () => {
+  // Nawyk utworzony 2026-11-17, wpisy dopisane wstecz na 15 i 16 listopada.
+  const h = habit({ createdAt: Date.UTC(2026, 10, 17, 12) });
+  const back = logs('2026-11-15', '2026-11-16', '2026-11-17', '2026-11-18', '2026-11-19');
+
+  it('liczą się do serii i siatki', () => {
+    expect(streak(h, back, TODAY)).toBe(5);
+    const cells = calendarWeeks(h, back, TODAY).flat();
+    expect(cells.find((c) => c.day === '2026-11-15')?.state).toBe('done');
+    expect(cells.find((c) => c.day === '2026-11-14')?.state).toBe('off');
+  });
+
+  it('% z 30 dni zaczyna się od pierwszego wpisu', () => {
+    expect(completion30(h, back, TODAY)).toBe(1);
   });
 });

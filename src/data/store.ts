@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'preact/hooks';
 import { defaultMeta, normalizeCategory, normalizeExpense, type Changes, type Repository } from './db';
-import { COLLECTIONS, emptyData, type CollectionName, type Data, type DayKey, type Meta, type Task, type TimeEntry } from './model';
-import { todayKey } from '../lib/date';
+import { COLLECTIONS, emptyData, type Category, type CollectionName, type Data, type DayKey, type Expense, type MerchantRule, type Meta, type Task, type TimeEntry } from './model';
+import { fetchNbpRate } from './nbp';
+import { dayKeyOf, todayKey } from '../lib/date';
+import { toPLNGrosze } from '../domain/currency';
+import { DEFAULT_CATEGORIES, merchantKey } from '../domain/expenses';
 import { newId } from '../lib/id';
 import { carryCount, makeTask, parseEstimate, rollover, runningEntry } from '../domain/tasks';
 
@@ -49,13 +52,17 @@ function mergeInto<T extends { id: string }>(list: T[], recs: T[]): T[] {
   return out;
 }
 
-function commit(changes: Changes) {
+function applyToState(changes: Changes) {
   const data = { ...state.data };
   for (const name of Object.keys(changes) as CollectionName[]) {
     (data as any)[name] = mergeInto(data[name] as any[], changes[name] as any[]);
   }
   state = { ...state, data };
   emit();
+}
+
+function commit(changes: Changes) {
+  applyToState(changes);
   repo.save(changes).catch(onSaveError);
 }
 
@@ -78,6 +85,7 @@ export async function init(r: Repository) {
   const { data, meta } = await repo.loadAll();
   state = { ...state, data, meta, today: todayKey(), ready: true };
   runRolloverIfNeeded();
+  ensureDefaultCategories();
   emit();
 }
 
@@ -277,4 +285,166 @@ export async function replaceAllData(data: Data, meta: Meta) {
   state = { ...state, data: clean, meta };
   runRolloverIfNeeded();
   emit();
+}
+
+/* ───────── wydatki ───────── */
+
+/** Kształt rekordu kolejki natywnej (Apple Pay przechwycone w tle). */
+export type CapturedPayment = { id: string; capturedAt: number; amount: number; currency: string; merchant: string; card: string };
+
+export function ensureDefaultCategories() {
+  if (state.meta.expensesSeeded || state.data.categories.length) return;
+  const now = Date.now();
+  const cats: Category[] = DEFAULT_CATEGORIES.map((c, order) => ({
+    id: newId(),
+    createdAt: now,
+    updatedAt: now,
+    deletedAt: null,
+    name: c.name,
+    monthlyLimit: null,
+    order,
+    archived: false,
+    junk: c.junk,
+  }));
+  commit({ categories: cats });
+  setMeta({ ...state.meta, expensesSeeded: true });
+}
+
+const normCurrency = (c: string) => c.trim().toUpperCase() || 'PLN';
+
+type Priced = Pick<Expense, 'amount' | 'original'>;
+
+/** Wycenia kwotę w PLN; dla obcej waluty próbuje pobrać kurs, a przy braku zostawia `amount: null`. */
+async function price(amount: number, currency: string, day: DayKey, fetchFn?: typeof fetch): Promise<Priced> {
+  if (currency === 'PLN') return { amount: Math.round(amount * 100), original: null };
+  const original = { amount, currency, rate: null as number | null, rateDate: null as DayKey | null };
+  try {
+    const r = await fetchNbpRate(currency, day, fetchFn);
+    if (r) return { amount: toPLNGrosze(amount, r.rate), original: { ...original, rate: r.rate, rateDate: r.rateDate } };
+  } catch {
+    /* brak sieci — kurs zostanie pobrany później */
+  }
+  return { amount: null, original };
+}
+
+function newExpense(now: number, fields: Pick<Expense, 'date' | 'categoryId' | 'note' | 'merchant' | 'source' | 'capturedAt'> & Priced & { id?: string }): Expense {
+  const { id, ...rest } = fields;
+  return { id: id ?? newId(), createdAt: now, updatedAt: now, deletedAt: null, ...rest };
+}
+
+/**
+ * Importuje płatności z kolejki natywnej. Zwraca id zapisane (lub już istniejące) — tylko te wolno
+ * usunąć z kolejki. Czeka na zapis w IndexedDB przed zwróceniem.
+ */
+export async function importCaptured(list: CapturedPayment[]): Promise<string[]> {
+  const known = new Set(state.data.expenses.map((e) => e.id));
+  const ids: string[] = [];
+  const fresh: Expense[] = [];
+  for (const p of list) {
+    if (!ids.includes(p.id)) ids.push(p.id);
+    if (known.has(p.id)) continue;
+    known.add(p.id);
+    const day = dayKeyOf(p.capturedAt);
+    const priced = await price(p.amount, normCurrency(p.currency), day);
+    fresh.push(
+      newExpense(Date.now(), {
+        id: p.id,
+        ...priced,
+        date: day,
+        categoryId: null,
+        note: '',
+        merchant: p.merchant,
+        source: 'applepay',
+        capturedAt: p.capturedAt,
+      }),
+    );
+  }
+  if (fresh.length) {
+    const changes: Changes = { expenses: fresh };
+    applyToState(changes);
+    try {
+      await repo.save(changes);
+    } catch (err) {
+      onSaveError(err);
+      throw err;
+    }
+  }
+  return ids;
+}
+
+/** Ponawia pobranie kursu dla wpisów w obcej walucie czekających na przeliczenie. */
+export async function resolvePendingRates(fetchFn?: typeof fetch): Promise<void> {
+  const pending = state.data.expenses.filter((e) => e.deletedAt === null && e.amount === null && e.original);
+  for (const e of pending) {
+    const o = e.original!;
+    let r;
+    try {
+      r = await fetchNbpRate(o.currency, e.date, fetchFn);
+    } catch {
+      continue;
+    }
+    if (!r) continue;
+    // Wpis mógł się zmienić w trakcie pobierania — bierzemy aktualną wersję.
+    const cur = state.data.expenses.find((x) => x.id === e.id);
+    if (!cur || cur.deletedAt !== null || cur.amount !== null) continue;
+    commit({
+      expenses: [{ ...cur, amount: toPLNGrosze(o.amount, r.rate), original: { ...o, rate: r.rate, rateDate: r.rateDate }, updatedAt: Date.now() }],
+    });
+  }
+}
+
+export async function addExpense(input: { amount: number; currency: string; categoryId: string | null; note: string; date: DayKey }) {
+  const priced = await price(input.amount, normCurrency(input.currency), input.date);
+  commit({
+    expenses: [
+      newExpense(Date.now(), {
+        ...priced,
+        date: input.date,
+        categoryId: input.categoryId,
+        note: input.note,
+        merchant: '',
+        source: 'manual',
+        capturedAt: null,
+      }),
+    ],
+  });
+}
+
+export function categorizeExpense(id: string, categoryId: string, patch?: { note?: string; amount?: number }) {
+  const e = state.data.expenses.find((x) => x.id === id);
+  if (!e) throw new Error(`Brak wydatku ${id}`);
+  const now = Date.now();
+  const changes: Changes = { expenses: [{ ...e, ...patch, categoryId, updatedAt: now }] };
+  const key = e.merchant ? merchantKey(e.merchant) : '';
+  if (key) {
+    const rule = state.data.merchantRules.find((r) => r.deletedAt === null && r.merchantKey === key);
+    const next: MerchantRule = rule
+      ? { ...rule, categoryId, updatedAt: now }
+      : { id: newId(), createdAt: now, updatedAt: now, deletedAt: null, merchantKey: key, categoryId };
+    changes.merchantRules = [next];
+  }
+  commit(changes);
+}
+
+export function deleteExpense(id: string) {
+  const e = state.data.expenses.find((x) => x.id === id);
+  if (!e) return;
+  const now = Date.now();
+  commit({ expenses: [{ ...e, deletedAt: now, updatedAt: now }] });
+}
+
+export function addCategory(name: string, junk: boolean) {
+  const clean = name.trim();
+  if (!clean) return;
+  const now = Date.now();
+  const order = state.data.categories.reduce((m, c) => Math.max(m, c.order), -1) + 1;
+  commit({
+    categories: [{ id: newId(), createdAt: now, updatedAt: now, deletedAt: null, name: clean, monthlyLimit: null, order, archived: false, junk }],
+  });
+}
+
+export function updateCategory(id: string, patch: Partial<Pick<Category, 'name' | 'monthlyLimit' | 'junk' | 'order' | 'archived'>>) {
+  const c = state.data.categories.find((x) => x.id === id);
+  if (!c) throw new Error(`Brak kategorii ${id}`);
+  commit({ categories: [{ ...c, ...patch, updatedAt: Date.now() }] });
 }

@@ -15,7 +15,6 @@ export function HabitsScreen() {
   return (
     <main class="screen">
       <header class="page-head">
-        <span class="eyebrow">Ostatnie tygodnie</span>
         <h1 class="page-title">Nawyki</h1>
       </header>
 

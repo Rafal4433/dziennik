@@ -24,7 +24,6 @@ export function ExpensesScreen() {
   return (
     <main class="screen">
       <header class="page-head">
-        <span class="eyebrow">Pieniądze</span>
         <h1 class="page-title">Wydatki</h1>
       </header>
 
@@ -85,7 +84,7 @@ export function ExpensesScreen() {
             {editCats ? 'Gotowe' : 'Edytuj'}
           </button>
         </header>
-        {editCats ? <CategoryEditor /> : <p class="empty">{categories.map((c) => c.name).join(' · ')}</p>}
+        {editCats ? <CategoryEditor /> : <p class="cat-list">{categories.map((c) => c.name).join(', ')}</p>}
       </section>
     </main>
   );

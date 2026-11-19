@@ -12,13 +12,16 @@ export function useNow(active: boolean, intervalMs = 1000): number {
   return active ? now : Date.now();
 }
 
-/** Poziomy gest przesunięcia (np. poprzedni / następny dzień). */
-export function useSwipe(onLeft: () => void, onRight: () => void) {
+/**
+ * Poziomy gest przesunięcia (np. poprzedni / następny dzień).
+ * `ignore` — elementy, na których gest nie startuje (pola i własne strefy gestów).
+ */
+export function useSwipe(onLeft: () => void, onRight: () => void, ignore = 'input, textarea, select, [data-noswipe]') {
   const start = useRef<{ x: number; y: number; t: number } | null>(null);
   return {
     onTouchStart(e: TouchEvent) {
       const target = e.target as HTMLElement;
-      if (target.closest('input, textarea, select, [data-noswipe]')) return;
+      if (target.closest(ignore)) return;
       const p = e.touches[0];
       start.current = { x: p.clientX, y: p.clientY, t: Date.now() };
     },

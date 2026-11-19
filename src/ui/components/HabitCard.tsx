@@ -25,7 +25,11 @@ export function HabitCard({ habit, logs, today }: { habit: Habit; logs: HabitLog
           </span>
         )}
       </div>
-      <p class="habit-card-meta">{meta.join(' · ')}</p>
+      <p class="habit-card-meta">
+        {meta.map((m) => (
+          <span key={m}>{m}</span>
+        ))}
+      </p>
       <HabitGrid weeks={calendarWeeks(habit, logs, today, 5)} today={today} goal={weekly ? goalWeeks(habit, logs, today, 5) : undefined} />
       {habit.kind === 'measure' && <WeightChart habit={habit} logs={logs} today={today} />}
     </li>

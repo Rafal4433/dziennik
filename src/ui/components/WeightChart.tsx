@@ -26,7 +26,13 @@ export function WeightChart({ habit, logs, today }: { habit: Habit; logs: HabitL
       ) : (
         <Plot points={points} unit={unit} />
       )}
-      {summary.length > 0 && <p class="chart-summary">{summary.join(' · ')}</p>}
+      {summary.length > 0 && (
+        <p class="chart-summary">
+          {summary.map((m) => (
+            <span key={m}>{m}</span>
+          ))}
+        </p>
+      )}
     </div>
   );
 }

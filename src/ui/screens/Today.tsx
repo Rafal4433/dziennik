@@ -3,6 +3,7 @@ import type { DayKey } from '../../data/model';
 import { dismissRolloverNote, useAppState } from '../../data/store';
 import { isLive, runningEntry, sortTasks, timeForDay } from '../../domain/tasks';
 import { addDays, formatDayLong, hourOf, relativeDayName } from '../../lib/date';
+import { WeekStrip } from '../components/WeekStrip';
 import { formatHM, formatPLN, plural } from '../../lib/format';
 import { useNow, useSwipe } from '../../lib/hooks';
 import { TaskRow } from '../components/TaskRow';
@@ -52,6 +53,8 @@ export function TodayScreen({ day, setDay, goToExpenses }: Props) {
   const pendingCount = pendingExpenses(expenses).length;
   const junkLine = isToday ? junkTodayLine(expenses, allCategories, today) : null;
   const [openExpense, setOpenExpense] = useState<string | null>(null);
+  /** Formularz wydatku jest zwinięty do jednego wiersza, jak „Dodaj zadanie”. */
+  const [addingExpense, setAddingExpense] = useState(false);
 
   const { habits, habitLogs } = s.data;
   const liveHabits = activeHabits(habits);
@@ -63,20 +66,22 @@ export function TodayScreen({ day, setDay, goToExpenses }: Props) {
     () => setDay(addDays(day, -1)),
   );
 
+  // „Dziś” + „czwartek, 19 listopada”; dalsze dni: „Poniedziałek” + „10 listopada”.
+  const [weekday, dayMonth] = formatDayLong(day).split(', ');
+  const title = rel ?? capitalize(weekday);
+  const subtitle = rel ? formatDayLong(day) : dayMonth;
+
   return (
     <main class="screen" {...swipe}>
       <header class="page-head">
         <div class="page-head-row">
-          <span class="eyebrow">{rel ?? (isPast ? 'Wcześniej' : 'Później')}</span>
-          <nav class="day-nav" aria-label="Zmiana dnia">
-            <button class="day-step" onClick={() => setDay(addDays(day, -1))} aria-label="Poprzedni dzień">‹</button>
-            {!isToday && (
-              <button class="btn-text" onClick={() => setDay(today)}>dziś</button>
-            )}
-            <button class="day-step" onClick={() => setDay(addDays(day, 1))} aria-label="Następny dzień">›</button>
-          </nav>
+          <h1 class="page-title">{title}</h1>
+          {!isToday && (
+            <button class="pill" onClick={() => setDay(today)}>Wróć do dziś</button>
+          )}
         </div>
-        <h1 class="page-title">{capitalize(formatDayLong(day))}</h1>
+        <p class="page-sub">{subtitle}</p>
+        <WeekStrip day={day} today={today} tasks={allTasks.filter(isLive)} onPick={setDay} />
       </header>
 
       {isToday && <ExpiryNote now={now} />}
@@ -93,8 +98,8 @@ export function TodayScreen({ day, setDay, goToExpenses }: Props) {
         <header class="section-head">
           <h2>Zadania</h2>
           <span class="section-stat num">
-            {tasks.length > 0 && `${doneCount}/${tasks.length}`}
-            {worked > 0 && ` · ${formatHM(worked)}`}
+            {worked > 0 && <span aria-label={`Czas pracy ${formatHM(worked)}`}>{formatHM(worked)}</span>}
+            {tasks.length > 0 && <span aria-label={`Zrobione ${doneCount} z ${tasks.length}`}>{doneCount}/{tasks.length}</span>}
           </span>
         </header>
         {tasks.length === 0 && (
@@ -165,7 +170,15 @@ export function TodayScreen({ day, setDay, goToExpenses }: Props) {
             ))}
           </ul>
         )}
-        {!isPast && <AddExpense compact date={day} />}
+        {!isPast &&
+          (addingExpense ? (
+            <AddExpense key={day} compact date={day} autoFocus onClose={() => setAddingExpense(false)} />
+          ) : (
+            <button class="add-row" onClick={() => setAddingExpense(true)}>
+              <span class="add-mark" aria-hidden="true">+</span>
+              <span class="add-row-label">Dodaj wydatek</span>
+            </button>
+          ))}
       </section>
 
       {showSummary ? (

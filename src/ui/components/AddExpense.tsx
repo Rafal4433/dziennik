@@ -13,13 +13,17 @@ interface Props {
   date?: DayKey;
   /** Tylko kwota + kategoria (PLN, dzień z `date`) — do sekcji na „Dziś”. */
   compact?: boolean;
+  /** Fokus na kwocie od razu (formularz rozwinięty stuknięciem). */
+  autoFocus?: boolean;
+  /** Zwinięcie formularza (na „Dziś”). */
+  onClose?: () => void;
 }
 
 /**
  * Ręczne dodanie wydatku. Kwota, potem stuknięcie kategorii zapisuje wpis.
  * Kwotę parsujemy dopiero przy zapisie — w trakcie pisania „12,” jest w porządku.
  */
-export function AddExpense({ date, compact = false }: Props) {
+export function AddExpense({ date, compact = false, autoFocus = false, onClose }: Props) {
   const s = useAppState();
   const categories = pickableCategories(s.data.categories);
   const [amount, setAmount] = useState('');
@@ -48,7 +52,7 @@ export function AddExpense({ date, compact = false }: Props) {
       setBusy(false);
     }
     const name = categories.find((c) => c.id === categoryId)?.name ?? '';
-    setSaved(`Zapisano: ${cur === 'PLN' ? formatPLN(grosze) : formatForeign(grosze / 100, cur)} · ${name}`);
+    setSaved(`Zapisano ${cur === 'PLN' ? formatPLN(grosze) : formatForeign(grosze / 100, cur)} w kategorii ${name}.`);
     setAmount('');
     setNote('');
     setHint(null);
@@ -68,6 +72,7 @@ export function AddExpense({ date, compact = false }: Props) {
           <input
             aria-label={compact ? 'Kwota wydatku w zł' : undefined}
             ref={amountRef}
+            autoFocus={autoFocus}
             class="num"
             inputMode="decimal"
             enterKeyHint="done"
@@ -107,12 +112,19 @@ export function AddExpense({ date, compact = false }: Props) {
       )}
 
       <div class="field">
-        {!compact && <span class="field-label">Kategoria — stuknięcie zapisuje</span>}
+        {!compact && <span class="field-label">Kategoria (stuknięcie zapisuje)</span>}
         <CategoryChips categories={categories} label="Zapisz w kategorii" disabled={busy} onPick={(id) => void save(id)} />
       </div>
 
-      {hint && <p class="hint" role="status">{hint}</p>}
-      {saved && !hint && <p class="hint" role="status">{saved}</p>}
+      {(hint || saved || onClose) && (
+        <div class="add-expense-foot">
+          {hint && <p class="hint" role="status">{hint}</p>}
+          {saved && !hint && <p class="hint" role="status">{saved}</p>}
+          {onClose && (
+            <button type="button" class="btn-text quiet" onClick={onClose}>Zwiń</button>
+          )}
+        </div>
+      )}
     </form>
   );
 }

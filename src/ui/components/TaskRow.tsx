@@ -37,11 +37,12 @@ export function TaskRow({ task, entries, runningTaskId, today, viewDay, expanded
   const carries = carryCount(task);
   const decide = needsDecision(task, today);
 
-  const meta: string[] = [];
-  if (task.status === 'skipped') meta.push(task.resolution === 'split' ? 'rozbite na mniejszy krok' : 'nie zrobione');
-  if (carries > 0) meta.push(`przeniesione ${carries}×`);
-  if (task.estimateMin) meta.push(`szac. ${formatMinutes(task.estimateMin)}`);
-  if (task.minimalVersion && task.status === 'todo') meta.push(`wystarczy: ${shorten(task.minimalVersion, 60)}`);
+  // Osobne elementy z odstępem zamiast łańcucha „a · b · c”. Szacunek zapisany tak, jak się go wpisuje („~45”).
+  const meta: { text: string; cls?: string }[] = [];
+  if (task.status === 'skipped') meta.push({ text: task.resolution === 'split' ? 'rozbite na mniejszy krok' : 'nie zrobione' });
+  if (task.estimateMin) meta.push({ text: `~${formatMinutes(task.estimateMin)}` });
+  if (carries > 0) meta.push({ text: `przeniesione ${carries}×`, cls: task.status === 'todo' ? 'task-carry' : undefined });
+  if (task.minimalVersion && task.status === 'todo') meta.push({ text: `wystarczy: ${shorten(task.minimalVersion, 60)}` });
 
   const onCheck = () => (task.status === 'skipped' ? reopen(task.id) : toggleDone(task.id));
 
@@ -59,7 +60,13 @@ export function TaskRow({ task, entries, runningTaskId, today, viewDay, expanded
         </button>
         <button class="task-main" onClick={onToggleExpand} aria-expanded={expanded}>
           <span class="task-title">{task.title}</span>
-          {meta.length > 0 && <span class="task-meta">{meta.join(' · ')}</span>}
+          {meta.length > 0 && (
+            <span class="task-meta">
+              {meta.map((m) => (
+                <span key={m.text} class={m.cls}>{m.text}</span>
+              ))}
+            </span>
+          )}
         </button>
         <TimerChip task={task} total={total} running={running} />
       </div>
@@ -200,7 +207,7 @@ function TaskDetails({ task, entries, total, running, today, viewDay, now }: Det
           {estimateMs && (
             <span class="clock-compare num">
               szacunek {formatHM(estimateMs)}
-              {total > 0 && <> · {total <= estimateMs ? `zostało ${formatHM(estimateMs - total)}` : `dłużej o ${formatHM(total - estimateMs)}`}</>}
+              {total > 0 && <>, {total <= estimateMs ? `zostało ${formatHM(estimateMs - total)}` : `dłużej o ${formatHM(total - estimateMs)}`}</>}
             </span>
           )}
           <button class={`btn${running ? '' : ' primary'}`} onClick={() => (running ? pauseTimer() : startTimer(task.id))}>

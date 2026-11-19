@@ -31,7 +31,6 @@ export function TasksScreen({ openDay }: { openDay: (d: DayKey) => void }) {
   return (
     <main class="screen">
       <header class="page-head">
-        <span class="eyebrow">Przegląd</span>
         <h1 class="page-title">Zadania</h1>
       </header>
 

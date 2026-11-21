@@ -1,6 +1,6 @@
 import { useState } from 'preact/hooks';
 import type { Category, Expense } from '../../data/model';
-import { categorizeExpense, deleteExpense } from '../../data/store';
+import { categorizeExpense, deleteExpense, updateExpenseNote } from '../../data/store';
 import { parseAmount } from '../../domain/expenses';
 import { CategoryChips } from './CategoryChips';
 
@@ -24,7 +24,8 @@ export function ExpenseEditor({ expense, categories, suggested, onDone }: Props)
   const [pln, setPln] = useState(toField(expense.amount));
   const [invalid, setInvalid] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const dirty = note.trim() !== expense.note || (foreign && pln !== toField(expense.amount));
+  // Notatka zapisuje się sama przy wyjściu z pola; stuknięcia kategorii wymaga tylko zmiana kwoty w zł.
+  const dirty = foreign && pln !== toField(expense.amount);
 
   const pick = (categoryId: string) => {
     const patch: { note?: string; amount?: number } = {};
@@ -51,7 +52,13 @@ export function ExpenseEditor({ expense, categories, suggested, onDone }: Props)
 
       <label class="field">
         <span class="field-label">Notatka (opcjonalnie)</span>
-        <input value={note} onInput={(e) => setNote(e.currentTarget.value)} enterKeyHint="done" />
+        <input
+          value={note}
+          onInput={(e) => setNote(e.currentTarget.value)}
+          onBlur={() => updateExpenseNote(expense.id, note.trim())}
+          enterKeyHint="done"
+          placeholder="np. obiad z Kasią"
+        />
       </label>
 
       {foreign && (

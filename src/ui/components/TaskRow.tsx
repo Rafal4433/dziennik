@@ -70,7 +70,7 @@ export function TaskRow({ task, entries, runningTaskId, today, viewDay, expanded
         </button>
         <TimerChip task={task} total={total} running={running} />
       </div>
-      {decide && !expanded && <CarryPrompt task={task} carries={carries} today={today} />}
+      {decide && !expanded && <CarryPrompt task={task} today={today} />}
       {expanded && <TaskDetails task={task} entries={entries} total={total} running={running} today={today} viewDay={viewDay} now={now} />}
     </li>
   );
@@ -94,20 +94,18 @@ function TimerChip({ task, total, running }: { task: Task; total: number; runnin
 
 /* ───────── pytanie po 3 przeniesieniach ───────── */
 
-function CarryPrompt({ task, carries, today }: { task: Task; carries: number; today: DayKey }) {
+function CarryPrompt({ task, today }: { task: Task; today: DayKey }) {
   const [mode, setMode] = useState<'ask' | 'split' | 'move'>('ask');
   return (
     <div class="prompt" data-noswipe>
       {mode === 'ask' && (
         <>
-          <p>
-            Przeniesione {carries}×. Rozbić na mniejszy krok, przełożyć na konkretny dzień czy odpuścić?
-          </p>
-          <div class="prompt-actions">
+          <p>Co dalej z tym zadaniem?</p>
+          <div class="prompt-actions prompt-row">
             <button class="btn" onClick={() => setMode('split')}>Rozbij</button>
             <button class="btn" onClick={() => setMode('move')}>Przełóż</button>
             <button class="btn" onClick={() => letGo(task.id)}>Odpuść</button>
-            <button class="btn-text" onClick={() => snoozePrompt(task.id)}>Nie teraz</button>
+            <button class="btn-text prompt-later" onClick={() => snoozePrompt(task.id)}>Nie teraz</button>
           </div>
         </>
       )}

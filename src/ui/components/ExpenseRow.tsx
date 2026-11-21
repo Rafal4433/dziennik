@@ -15,14 +15,15 @@ interface Props {
 /** Wiersz listy okresu: sklep, pod nim kategoria, kwota po prawej; stuknięcie otwiera ten sam panel co „Do uzupełnienia”. */
 export function ExpenseRow({ expense, allCategories, categories, expanded, onToggle }: Props) {
   const cat = expense.categoryId === null ? null : allCategories.find((c) => c.id === expense.categoryId);
-  const name = expense.merchant || expense.note || 'Wydatek';
+  // Bez sklepu i notatki nazwą wiersza jest sama kategoria (nie „Wydatek” pod nagłówkiem „Wydatki”).
+  const name = expense.merchant || expense.note || null;
   const catName = expense.categoryId === null ? 'do uzupełnienia' : (cat?.name ?? '—');
   return (
     <li class={`expense${expanded ? ' is-open' : ''}`}>
       <button class="expense-line" onClick={onToggle} aria-expanded={expanded}>
         <span class="expense-name">
-          <span>{name}</span>
-          <span class="expense-cat">{catName}</span>
+          <span>{name ?? catName.charAt(0).toUpperCase() + catName.slice(1)}</span>
+          {name && <span class="expense-cat">{catName}</span>}
         </span>
         <span class={`expense-amount num${expense.amount === null ? ' muted' : ''}`}>{expenseAmountLabel(expense)}</span>
       </button>

@@ -1,4 +1,3 @@
-import { useState } from 'preact/hooks';
 import type { DayKey, Task } from '../../data/model';
 import { useAppState } from '../../data/store';
 import { carryCount, isLive, needsDecision, sortTasks, timeForDay } from '../../domain/tasks';
@@ -11,7 +10,6 @@ export function TasksScreen({ openDay }: { openDay: (d: DayKey) => void }) {
   const s = useAppState();
   const { today } = s;
   const live = s.data.tasks.filter(isLive);
-  const [planDay, setPlanDay] = useState(addDays(today, 1));
 
   const toDecide = live.filter((t) => needsDecision(t, today));
   const upcoming = groupByDay(live.filter((t) => t.date > today && t.status === 'todo'));
@@ -33,11 +31,15 @@ export function TasksScreen({ openDay }: { openDay: (d: DayKey) => void }) {
       <header class="page-head">
         <h1 class="page-title">Zadania</h1>
       </header>
+      {/* Nowe zadanie trafia na dziś; inny dzień ustawia się potem przez „Przełóż”. */}
+      <div class="add-box">
+        <AddTask date={today} placeholder="Nowe zadanie na dziś" />
+      </div>
 
       {toDecide.length > 0 && (
         <section class="section">
           <header class="section-head">
-            <h2>Czekają na decyzję</h2>
+            <h2>Zablokowane</h2>
           </header>
           <ul class="plain-list">
             {toDecide.map((t) => (
@@ -52,22 +54,6 @@ export function TasksScreen({ openDay }: { openDay: (d: DayKey) => void }) {
         </section>
       )}
 
-      <section class="section">
-        <header class="section-head">
-          <h2>Zaplanuj na inny dzień</h2>
-        </header>
-        <div class="plan-row">
-          <input
-            type="date"
-            value={planDay}
-            min={addDays(today, 1)}
-            onInput={(e) => e.currentTarget.value && setPlanDay(e.currentTarget.value)}
-            aria-label="Dzień"
-          />
-          <span class="muted">{label(planDay)}</span>
-        </div>
-        <AddTask date={planDay} placeholder="Dodaj zadanie" />
-      </section>
 
       <section class="section">
         <header class="section-head">

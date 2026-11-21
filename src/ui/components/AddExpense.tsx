@@ -47,7 +47,7 @@ export function AddExpense({ date, compact = false, autoFocus = false, onClose }
     }
     setBusy(true);
     try {
-      await addExpense({ amount: grosze / 100, currency: cur, categoryId, note: compact ? '' : note.trim(), date: targetDay });
+      await addExpense({ amount: grosze / 100, currency: cur, categoryId, note: note.trim(), date: targetDay });
     } finally {
       setBusy(false);
     }
@@ -97,6 +97,17 @@ export function AddExpense({ date, compact = false, autoFocus = false, onClose }
           </label>
         )}
       </div>
+
+      {compact && (
+        <input
+          class="add-expense-note"
+          aria-label="Notatka (opcjonalnie)"
+          placeholder="Notatka, np. obiad z Kasią (opcjonalnie)"
+          value={note}
+          onInput={(e) => setNote(e.currentTarget.value)}
+          enterKeyHint="done"
+        />
+      )}
 
       {!compact && (
         <div class="field-row">

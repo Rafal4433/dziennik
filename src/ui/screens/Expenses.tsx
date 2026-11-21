@@ -1,15 +1,13 @@
 import { useState } from 'preact/hooks';
-import { Capacitor } from '@capacitor/core';
 import { useAppState } from '../../data/store';
-import { pendingExpenses, pickableCategories } from '../../domain/expenses';
+import { expenseAmountLabel, pendingExpenses, pickableCategories } from '../../domain/expenses';
+import { plural } from '../../lib/format';
 import { AddExpense } from '../components/AddExpense';
 import { CategoryEditor } from '../components/CategoryEditor';
-import { JunkSummary } from '../components/JunkSummary';
 import { PendingExpenseRow } from '../components/PendingExpenseRow';
 import { PeriodView } from '../components/PeriodView';
-import { ShortcutSetup } from '../components/ShortcutSetup';
 
-/** Ekran Wydatki: do uzupełnienia, syf, okres, ręczne dodanie, kategorie. */
+/** Ekran Wydatki w stylu „Dziś”: suma okresu, kategorie, ostatnie wpisy, zwijane dodawanie. */
 export function ExpensesScreen() {
   const s = useAppState();
   const { today } = s;
@@ -19,47 +17,44 @@ export function ExpensesScreen() {
   /** Jeden rozwinięty wiersz naraz; klucz z prefiksem, bo wpis bez kategorii jest też na liście okresu. */
   const [expanded, setExpanded] = useState<string | null>(null);
   const [editCats, setEditCats] = useState(false);
-  const showSetup = Capacitor.isNativePlatform() && !expenses.some((e) => e.source === 'applepay');
+  const [showPending, setShowPending] = useState(false);
+  const [adding, setAdding] = useState(false);
+
+  const first = pending[0];
+  const pendingNote = pending.length > 0 && (
+    <>
+      <div class="note pending-note">
+        <span>
+          {pending.length === 1
+            ? `${first.merchant || first.note || 'Wydatek'}, ${expenseAmountLabel(first)} czeka na kategorię`
+            : `${pending.length} ${plural(pending.length, 'płatność czeka', 'płatności czekają', 'płatności czeka')} na kategorię`}
+        </span>
+        <button class="btn" onClick={() => setShowPending(!showPending)} aria-expanded={showPending}>
+          {showPending ? 'Zwiń' : 'Uzupełnij'}
+        </button>
+      </div>
+      {showPending && (
+        <ul class="plain-list">
+          {pending.map((e) => (
+            <PendingExpenseRow
+              key={e.id}
+              expense={e}
+              categories={categories}
+              rules={merchantRules}
+              expanded={expanded === `p:${e.id}`}
+              onToggle={() => setExpanded(expanded === `p:${e.id}` ? null : `p:${e.id}`)}
+            />
+          ))}
+        </ul>
+      )}
+    </>
+  );
 
   return (
     <main class="screen">
       <header class="page-head">
         <h1 class="page-title">Wydatki</h1>
       </header>
-
-      {pending.length > 0 && (
-        <section class="section">
-          <header class="section-head">
-            <h2>Do uzupełnienia</h2>
-            <span class="section-stat num">{pending.length}</span>
-          </header>
-          <ul class="plain-list">
-            {pending.map((e) => (
-              <PendingExpenseRow
-                key={e.id}
-                expense={e}
-                categories={categories}
-                rules={merchantRules}
-                expanded={expanded === `p:${e.id}`}
-                onToggle={() => setExpanded(expanded === `p:${e.id}` ? null : `p:${e.id}`)}
-              />
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {showSetup && (
-        <section class="section">
-          <ShortcutSetup />
-        </section>
-      )}
-
-      <section class="section">
-        <header class="section-head">
-          <h2>Syf</h2>
-        </header>
-        <JunkSummary expenses={expenses} categories={allCategories} today={today} />
-      </section>
 
       <PeriodView
         expenses={expenses}
@@ -68,24 +63,23 @@ export function ExpensesScreen() {
         today={today}
         expanded={expanded}
         setExpanded={setExpanded}
+        pendingNote={pendingNote}
+        editingCategories={editCats}
+        onToggleCategories={() => setEditCats(!editCats)}
+        categoryEditor={<CategoryEditor />}
       />
 
-      <section class="section">
-        <header class="section-head">
-          <h2>Dodaj ręcznie</h2>
-        </header>
-        <AddExpense />
-      </section>
-
-      <section class="section">
-        <header class="section-head">
-          <h2>Kategorie</h2>
-          <button class="btn-text" onClick={() => setEditCats(!editCats)} aria-expanded={editCats}>
-            {editCats ? 'Gotowe' : 'Edytuj'}
+      <div class="section-foot">
+        {adding ? (
+          <AddExpense onClose={() => setAdding(false)} autoFocus />
+        ) : (
+          <button class="add-row" onClick={() => setAdding(true)}>
+            <span class="add-mark" aria-hidden="true">+</span>
+            <span class="add-row-label">Dodaj wydatek</span>
           </button>
-        </header>
-        {editCats ? <CategoryEditor /> : <p class="cat-list">{categories.map((c) => c.name).join(', ')}</p>}
-      </section>
+        )}
+      </div>
+
     </main>
   );
 }

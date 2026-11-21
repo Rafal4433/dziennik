@@ -25,38 +25,63 @@ export function DaySummary({ day, today, tasks, carriedAway, entries, now }: Pro
       <header class="section-head">
         <h2>Podsumowanie dnia</h2>
       </header>
-      <dl class="ledger">
-        <div class="ledger-row">
-          <dt>Zrobione</dt>
+      <dl class="summary-tiles">
+        <div class="stat-tile">
+          <dt>zrobione</dt>
           <dd class="num">{done.length}</dd>
         </div>
-        {done.map((t) => (
-          <div class="ledger-sub" key={t.id}>
-            <dt>{t.title}</dt>
-            <dd class="num">{formatHM(timeForTask(entries, t.id, now))}</dd>
-          </div>
-        ))}
-        <div class="ledger-row">
-          <dt>Czas pracy</dt>
+        <div class="stat-tile">
+          <dt>czas pracy</dt>
           <dd class="num">{formatHM(worked)}</dd>
         </div>
-        {letGo.length > 0 && (
-          <div class="ledger-row">
-            <dt>Odpuszczone lub rozbite</dt>
-            <dd class="num">{letGo.length}</dd>
-          </div>
-        )}
-        <div class="ledger-row">
-          <dt>{day === today ? 'Przechodzi na jutro' : 'Przeszło dalej'}</dt>
+        <div class="stat-tile">
+          <dt>{day === today ? 'na jutro' : 'dalej'}</dt>
           <dd class="num">{goingOn.length}</dd>
         </div>
-        {goingOn.map((t) => (
-          <div class="ledger-sub" key={t.id}>
-            <dt>{t.title}</dt>
-            <dd />
-          </div>
-        ))}
       </dl>
+
+      {done.length > 0 && (
+        <>
+          <h3 class="group-title">Zrobione</h3>
+          <ul class="group">
+            {done.map((t) => (
+              <li class="group-row" key={t.id}>
+                <span class="group-mark is-done" aria-hidden="true" />
+                <span class="group-text">{t.title}</span>
+                <span class="group-side num">{formatHM(timeForTask(entries, t.id, now))}</span>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+
+      {letGo.length > 0 && (
+        <>
+          <h3 class="group-title">Odpuszczone lub rozbite</h3>
+          <ul class="group">
+            {letGo.map((t) => (
+              <li class="group-row" key={t.id}>
+                <span class="group-mark is-skipped" aria-hidden="true" />
+                <span class="group-text">{t.title}</span>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+
+      {goingOn.length > 0 && (
+        <>
+          <h3 class="group-title">{day === today ? 'Przechodzi na jutro' : 'Przeszło dalej'}</h3>
+          <ul class="group">
+            {goingOn.map((t) => (
+              <li class="group-row" key={t.id}>
+                <span class="group-mark" aria-hidden="true" />
+                <span class="group-text">{t.title}</span>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
     </section>
   );
 }

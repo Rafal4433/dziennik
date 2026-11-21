@@ -13,11 +13,13 @@ export function WeightChart({ habit, logs, today }: { habit: Habit; logs: HabitL
   const trend = weightTrend(logs, habit.id, today);
   const unit = habit.unit;
 
+  // Trzy kafelki: duża wartość, krótki opis pod spodem.
+  const change = trendLabel(trend.delta, unit);
   const summary = [
-    trend.last && `Ostatnio ${formatMeasure(trend.last.value, unit)}`,
-    trend.avg7 !== null && `średnia 7 dni ${formatMeasure(trend.avg7, unit)}`,
-    trendLabel(trend.delta, unit),
-  ].filter(Boolean) as string[];
+    trend.last && { value: formatMeasure(trend.last.value, unit), label: 'ostatnio' },
+    trend.avg7 !== null && { value: formatMeasure(trend.avg7, unit), label: 'średnia 7 dni' },
+    change && { value: change.replace(' w tydzień', ''), label: 'w tydzień' },
+  ].filter(Boolean) as { value: string; label: string }[];
 
   return (
     <div class="chart">
@@ -27,11 +29,14 @@ export function WeightChart({ habit, logs, today }: { habit: Habit; logs: HabitL
         <Plot points={points} unit={unit} />
       )}
       {summary.length > 0 && (
-        <p class="chart-summary">
+        <dl class="stat-tiles">
           {summary.map((m) => (
-            <span key={m}>{m}</span>
+            <div class="stat-tile" key={m.label}>
+              <dt>{m.label}</dt>
+              <dd class="num">{m.value}</dd>
+            </div>
           ))}
-        </p>
+        </dl>
       )}
     </div>
   );

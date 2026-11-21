@@ -150,3 +150,15 @@ export function dayTime(entries: TimeEntry[], tasks: Task[], day: DayKey, now: n
     estimate: count > 0 ? { count, plannedMs, actualMs } : null,
   };
 }
+
+/**
+ * Poprawka długości odcinka (np. stoper zostawiony na noc): koniec = start + `ms`.
+ * Chodzący stoper zostaje przy tym zatrzymany. Koniec nie może wypaść w przyszłości.
+ * Zwraca null, gdy długość jest niepoprawna albo nic się nie zmienia.
+ */
+export function withDuration(e: TimeEntry, ms: number, now: number): TimeEntry | null {
+  if (!Number.isFinite(ms) || ms <= 0 || e.deletedAt !== null) return null;
+  const endedAt = Math.min(e.startedAt + Math.round(ms), now);
+  if (endedAt <= e.startedAt || endedAt === e.endedAt) return null;
+  return { ...e, endedAt, updatedAt: now };
+}

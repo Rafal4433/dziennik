@@ -50,6 +50,8 @@ class ViewController: CAPBridgeViewController {
         super.capacitorDidLoad()
         // Lokalna wtyczka kolejki płatności z Expenses.swift (nie jest pakietem npm, więc rejestrujemy ją ręcznie).
         bridge?.registerPluginInstance(PendingExpensesPlugin())
+        // Rozpoznawanie mowy po polsku dla asystenta (Speech.swift).
+        bridge?.registerPluginInstance(SpeechPlugin())
         let paper = UIColor(named: "Paper") ?? .systemBackground
         webView?.isOpaque = false
         webView?.backgroundColor = paper

@@ -1,6 +1,7 @@
 import type { DayKey, Task, TimeEntry } from '../../data/model';
-import { timeForDay, timeForTask } from '../../domain/tasks';
-import { formatHM } from '../../lib/format';
+import { dayTime, timeForTask } from '../../domain/tasks';
+import { clockOf } from '../../lib/date';
+import { formatHM, plural } from '../../lib/format';
 
 interface Props {
   day: DayKey;
@@ -18,7 +19,7 @@ export function DaySummary({ day, today, tasks, carriedAway, entries, now }: Pro
   const letGo = tasks.filter((t) => t.status === 'skipped');
   const stillOpen = tasks.filter((t) => t.status === 'todo');
   const goingOn = day === today ? stillOpen : [...carriedAway, ...stillOpen];
-  const worked = timeForDay(entries, day, now);
+  const time = dayTime(entries, tasks, day, now);
 
   return (
     <section class="section summary">
@@ -38,8 +39,40 @@ export function DaySummary({ day, today, tasks, carriedAway, entries, now }: Pro
         ))}
         <div class="ledger-row">
           <dt>Czas pracy</dt>
-          <dd class="num">{formatHM(worked)}</dd>
+          <dd class="num">{formatHM(time.total)}</dd>
         </div>
+        {time.total > 0 && (
+          <>
+            <div class="ledger-sub">
+              <dt>Przy zrobionych</dt>
+              <dd class="num">{formatHM(time.onDone)}</dd>
+            </div>
+            {time.onOther > 0 && (
+              <div class="ledger-sub">
+                <dt>Przy pozostałych</dt>
+                <dd class="num">{formatHM(time.onOther)}</dd>
+              </div>
+            )}
+          </>
+        )}
+        {time.span && (
+          <div class="ledger-sub">
+            <dt>
+              Godziny pracy · {time.sessions} {plural(time.sessions, 'odcinek', 'odcinki', 'odcinków')}
+            </dt>
+            <dd class="num">
+              {clockOf(time.span.from)}–{clockOf(time.span.to)}
+            </dd>
+          </div>
+        )}
+        {time.estimate && (
+          <div class="ledger-sub">
+            <dt>Szacunek / faktycznie</dt>
+            <dd class="num">
+              {formatHM(time.estimate.plannedMs)} / {formatHM(time.estimate.actualMs)}
+            </dd>
+          </div>
+        )}
         {letGo.length > 0 && (
           <div class="ledger-row">
             <dt>Odpuszczone lub rozbite</dt>

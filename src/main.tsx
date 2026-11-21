@@ -1,11 +1,4 @@
 import { render } from 'preact';
-import '@fontsource-variable/fraunces/opsz.css';
-import '@fontsource/source-sans-3/latin-400.css';
-import '@fontsource/source-sans-3/latin-ext-400.css';
-import '@fontsource/source-sans-3/latin-600.css';
-import '@fontsource/source-sans-3/latin-ext-600.css';
-import '@fontsource/ibm-plex-mono/latin-400.css';
-import '@fontsource/ibm-plex-mono/latin-500.css';
 import './styles.css';
 import { App } from './ui/App';
 import { init, setPersistenceWarning } from './data/store';

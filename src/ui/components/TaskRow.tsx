@@ -38,11 +38,12 @@ export function TaskRow({ task, entries, runningTaskId, today, viewDay, expanded
   const carries = carryCount(task);
   const decide = needsDecision(task, today);
 
-  const meta: string[] = [];
-  if (task.status === 'skipped') meta.push(task.resolution === 'split' ? 'rozbite na mniejszy krok' : 'nie zrobione');
-  if (carries > 0) meta.push(`przeniesione ${carries}×`);
-  if (task.estimateMin) meta.push(`szac. ${formatMinutes(task.estimateMin)}`);
-  if (task.minimalVersion && task.status === 'todo') meta.push(`wystarczy: ${shorten(task.minimalVersion, 60)}`);
+  // Osobne elementy z odstępem zamiast łańcucha „a · b · c”. Szacunek zapisany tak, jak się go wpisuje („~45”).
+  const meta: { text: string; cls?: string }[] = [];
+  if (task.status === 'skipped') meta.push({ text: task.resolution === 'split' ? 'rozbite na mniejszy krok' : 'nie zrobione' });
+  if (task.estimateMin) meta.push({ text: `~${formatMinutes(task.estimateMin)}` });
+  if (carries > 0) meta.push({ text: `przeniesione ${carries}×`, cls: task.status === 'todo' ? 'task-carry' : undefined });
+  if (task.minimalVersion && task.status === 'todo') meta.push({ text: `wystarczy: ${shorten(task.minimalVersion, 60)}` });
 
   const onCheck = () => (task.status === 'skipped' ? reopen(task.id) : toggleDone(task.id));
 
@@ -60,11 +61,17 @@ export function TaskRow({ task, entries, runningTaskId, today, viewDay, expanded
         </button>
         <button class="task-main" onClick={onToggleExpand} aria-expanded={expanded}>
           <span class="task-title">{task.title}</span>
-          {meta.length > 0 && <span class="task-meta">{meta.join(' · ')}</span>}
+          {meta.length > 0 && (
+            <span class="task-meta">
+              {meta.map((m) => (
+                <span key={m.text} class={m.cls}>{m.text}</span>
+              ))}
+            </span>
+          )}
         </button>
         <TimerChip task={task} total={total} running={running} />
       </div>
-      {decide && !expanded && <CarryPrompt task={task} carries={carries} today={today} />}
+      {decide && !expanded && <CarryPrompt task={task} today={today} />}
       {expanded && <TaskDetails task={task} entries={entries} total={total} running={running} today={today} viewDay={viewDay} now={now} />}
     </li>
   );
@@ -88,20 +95,18 @@ function TimerChip({ task, total, running }: { task: Task; total: number; runnin
 
 /* ───────── pytanie po 3 przeniesieniach ───────── */
 
-function CarryPrompt({ task, carries, today }: { task: Task; carries: number; today: DayKey }) {
+function CarryPrompt({ task, today }: { task: Task; today: DayKey }) {
   const [mode, setMode] = useState<'ask' | 'split' | 'move'>('ask');
   return (
     <div class="prompt" data-noswipe>
       {mode === 'ask' && (
         <>
-          <p>
-            Przeniesione {carries}×. Rozbić na mniejszy krok, przełożyć na konkretny dzień czy odpuścić?
-          </p>
-          <div class="prompt-actions">
+          <p>Co dalej z tym zadaniem?</p>
+          <div class="prompt-actions prompt-row">
             <button class="btn" onClick={() => setMode('split')}>Rozbij</button>
             <button class="btn" onClick={() => setMode('move')}>Przełóż</button>
             <button class="btn" onClick={() => letGo(task.id)}>Odpuść</button>
-            <button class="btn-text" onClick={() => snoozePrompt(task.id)}>Nie teraz</button>
+            <button class="btn-text prompt-later" onClick={() => snoozePrompt(task.id)}>Nie teraz</button>
           </div>
         </>
       )}
@@ -201,7 +206,7 @@ function TaskDetails({ task, entries, total, running, today, viewDay, now }: Det
           {estimateMs && (
             <span class="clock-compare num">
               szacunek {formatHM(estimateMs)}
-              {total > 0 && <> · {total <= estimateMs ? `zostało ${formatHM(estimateMs - total)}` : `dłużej o ${formatHM(total - estimateMs)}`}</>}
+              {total > 0 && <>, {total <= estimateMs ? `zostało ${formatHM(estimateMs - total)}` : `dłużej o ${formatHM(total - estimateMs)}`}</>}
             </span>
           )}
           <button class={`btn${running ? '' : ' primary'}`} onClick={() => (running ? pauseTimer() : startTimer(task.id))}>

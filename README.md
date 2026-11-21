@@ -102,7 +102,10 @@ z regułą „nowszy `updatedAt` wygrywa”. Tabele w Postgresie mogą mieć 1:1
 
 ## Wygląd
 
-Papierowy notes albo księga rachunkowa: tło `#F5F1E8`, tekst `#1C1B19` i jeden akcent, zieleń butelkowa `#1F4D3A`.
-Fraunces w nagłówkach, Source Sans 3 w treści, IBM Plex Mono z cyframi tabelarycznymi w czasach i kwotach.
-Zamiast kart są cienkie linie, zaokrąglenia mają 2–3 px, animacje trwają najwyżej 120 ms.
-Tryb ciemny włącza się według ustawień systemu i używa ciepłego grafitu.
+Biała kartka i niebieski długopis: tło `#FFFFFF`, tekst `#19191D` i jeden kolor, atrament `#2840C8`. Atramentem jest tylko to,
+co zostało odhaczone albo właśnie trwa (zrobione zadanie, chodzący stoper, dzisiejsza data, wykonany nawyk).
+Jeden krój — systemowy (SF Pro na iPhonie), cyfry tabelaryczne w czasach i kwotach; bez fontów webowych.
+Strukturę robią odstępy i wyrównanie, nie linie: bez kresek pod wierszami, bez wersalików nad nagłówkami.
+Promień zależy od roli: kontrolki 10 px, panele 14 px, żetony kategorii okrągłe. Na Dziś pasek tygodnia (stuknięcie = dzień,
+przesunięcie paska = tydzień, przesunięcie ekranu = dzień); kropka pod dniem: szara = coś otwarte, atrament = wszystko zamknięte.
+Animacje do 180 ms z mocnym ease-out, przyciski lekko się wciskają. Tryb ciemny według ustawień systemu (grafit `#111113`).

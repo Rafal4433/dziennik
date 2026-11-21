@@ -149,3 +149,19 @@ describe('wydatki w store', () => {
     expect(getState().meta.expensesSeeded).toBe(true);
   });
 });
+
+describe('notatka wydatku', () => {
+  it('zapisuje się od razu i przetrwa ponowne otwarcie bazy', async () => {
+    const { addExpense, updateExpenseNote } = await import('../src/data/store');
+    const repo = freshRepo();
+    await init(repo);
+    const cat = getState().data.categories[0];
+    await addExpense({ amount: 12.5, currency: 'PLN', categoryId: cat.id, note: 'obiad', date: getState().today });
+    const e = getState().data.expenses.find((x) => x.note === 'obiad')!;
+    expect(e).toBeTruthy();
+    updateExpenseNote(e.id, 'obiad z Kasią');
+    await settle();
+    await init(repo);
+    expect(getState().data.expenses.find((x) => x.id === e.id)!.note).toBe('obiad z Kasią');
+  });
+});

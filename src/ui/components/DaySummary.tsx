@@ -26,70 +26,99 @@ export function DaySummary({ day, today, tasks, carriedAway, entries, now }: Pro
       <header class="section-head">
         <h2>Podsumowanie dnia</h2>
       </header>
-      <dl class="ledger">
-        <div class="ledger-row">
-          <dt>Zrobione</dt>
+      <dl class="summary-tiles">
+        <div class="stat-tile">
+          <dt>zrobione</dt>
           <dd class="num">{done.length}</dd>
         </div>
-        {done.map((t) => (
-          <div class="ledger-sub" key={t.id}>
-            <dt>{t.title}</dt>
-            <dd class="num">{formatHM(timeForTask(entries, t.id, now))}</dd>
-          </div>
-        ))}
-        <div class="ledger-row">
-          <dt>Czas pracy</dt>
+        <div class="stat-tile">
+          <dt>czas pracy</dt>
           <dd class="num">{formatHM(time.total)}</dd>
         </div>
-        {time.total > 0 && (
-          <>
-            <div class="ledger-sub">
-              <dt>Przy zrobionych</dt>
-              <dd class="num">{formatHM(time.onDone)}</dd>
-            </div>
-            {time.onOther > 0 && (
-              <div class="ledger-sub">
-                <dt>Przy pozostałych</dt>
-                <dd class="num">{formatHM(time.onOther)}</dd>
-              </div>
-            )}
-          </>
-        )}
-        {time.span && (
-          <div class="ledger-sub">
-            <dt>
-              Godziny pracy · {time.sessions} {plural(time.sessions, 'odcinek', 'odcinki', 'odcinków')}
-            </dt>
-            <dd class="num">
-              {clockOf(time.span.from)}–{clockOf(time.span.to)}
-            </dd>
-          </div>
-        )}
-        {time.estimate && (
-          <div class="ledger-sub">
-            <dt>Szacunek / faktycznie</dt>
-            <dd class="num">
-              {formatHM(time.estimate.plannedMs)} / {formatHM(time.estimate.actualMs)}
-            </dd>
-          </div>
-        )}
-        {letGo.length > 0 && (
-          <div class="ledger-row">
-            <dt>Odpuszczone lub rozbite</dt>
-            <dd class="num">{letGo.length}</dd>
-          </div>
-        )}
-        <div class="ledger-row">
-          <dt>{day === today ? 'Przechodzi na jutro' : 'Przeszło dalej'}</dt>
+        <div class="stat-tile">
+          <dt>{day === today ? 'na jutro' : 'dalej'}</dt>
           <dd class="num">{goingOn.length}</dd>
         </div>
-        {goingOn.map((t) => (
-          <div class="ledger-sub" key={t.id}>
-            <dt>{t.title}</dt>
-            <dd />
-          </div>
-        ))}
       </dl>
+
+      {time.total > 0 && (
+        <>
+          <h3 class="group-title">Czas pracy</h3>
+          <ul class="group">
+            <li class="group-row">
+              <span class="group-text">Przy zrobionych</span>
+              <span class="group-side num">{formatHM(time.onDone)}</span>
+            </li>
+            {time.onOther > 0 && (
+              <li class="group-row">
+                <span class="group-text">Przy pozostałych</span>
+                <span class="group-side num">{formatHM(time.onOther)}</span>
+              </li>
+            )}
+            {time.span && (
+              <li class="group-row">
+                <span class="group-text">
+                  Godziny pracy · {time.sessions} {plural(time.sessions, 'odcinek', 'odcinki', 'odcinków')}
+                </span>
+                <span class="group-side num">
+                  {clockOf(time.span.from)}–{clockOf(time.span.to)}
+                </span>
+              </li>
+            )}
+            {time.estimate && (
+              <li class="group-row">
+                <span class="group-text">Szacunek / faktycznie</span>
+                <span class="group-side num">
+                  {formatHM(time.estimate.plannedMs)} / {formatHM(time.estimate.actualMs)}
+                </span>
+              </li>
+            )}
+          </ul>
+        </>
+      )}
+
+      {done.length > 0 && (
+        <>
+          <h3 class="group-title">Zrobione</h3>
+          <ul class="group">
+            {done.map((t) => (
+              <li class="group-row" key={t.id}>
+                <span class="group-mark is-done" aria-hidden="true" />
+                <span class="group-text">{t.title}</span>
+                <span class="group-side num">{formatHM(timeForTask(entries, t.id, now))}</span>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+
+      {letGo.length > 0 && (
+        <>
+          <h3 class="group-title">Odpuszczone lub rozbite</h3>
+          <ul class="group">
+            {letGo.map((t) => (
+              <li class="group-row" key={t.id}>
+                <span class="group-mark is-skipped" aria-hidden="true" />
+                <span class="group-text">{t.title}</span>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+
+      {goingOn.length > 0 && (
+        <>
+          <h3 class="group-title">{day === today ? 'Przechodzi na jutro' : 'Przeszło dalej'}</h3>
+          <ul class="group">
+            {goingOn.map((t) => (
+              <li class="group-row" key={t.id}>
+                <span class="group-mark" aria-hidden="true" />
+                <span class="group-text">{t.title}</span>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
     </section>
   );
 }

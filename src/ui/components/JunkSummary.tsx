@@ -50,7 +50,7 @@ export function JunkSummary({ expenses, categories, today }: { expenses: Expense
       </div>
       {limits.map(({ c, usage }) => (
         <div class="ledger-row" key={c.id}>
-          <dt>Limit · {c.name}</dt>
+          <dt>Limit: {c.name}</dt>
           <dd>
             <LimitBar spent={usage!.spent} limit={usage!.limit} />
           </dd>

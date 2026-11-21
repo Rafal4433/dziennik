@@ -12,9 +12,9 @@ import { DaySummary } from '../components/DaySummary';
 import { AddExpense } from '../components/AddExpense';
 import { ExpenseRow } from '../components/ExpenseRow';
 import { ExpiryNote } from '../components/ExpiryNote';
-import { HabitRow } from '../components/HabitRow';
+import { HabitRow, QuitRow } from '../components/HabitRow';
 import { activeHabits, isDue, logOn } from '../../domain/habits';
-import { inRange, junkTodayLine, pendingExpenses, pickableCategories, totals } from '../../domain/expenses';
+import { inRange, pendingExpenses, pickableCategories, totals } from '../../domain/expenses';
 
 /** Wieczorne podsumowanie pokazuje się samo od tej godziny. */
 const EVENING_HOUR = 20;
@@ -23,9 +23,10 @@ interface Props {
   day: DayKey;
   setDay: (d: DayKey) => void;
   goToExpenses: () => void;
+  openSettings: () => void;
 }
 
-export function TodayScreen({ day, setDay, goToExpenses }: Props) {
+export function TodayScreen({ day, setDay, goToExpenses, openSettings }: Props) {
   const s = useAppState();
   const { today } = s;
   const { tasks: allTasks, timeEntries } = s.data;
@@ -51,14 +52,14 @@ export function TodayScreen({ day, setDay, goToExpenses }: Props) {
   const dayExpenses = expenses.filter((e) => isLive(e) && inRange(e, dayRange));
   const spent = totals(expenses, allCategories, dayRange).total;
   const pendingCount = pendingExpenses(expenses).length;
-  const junkLine = isToday ? junkTodayLine(expenses, allCategories, today) : null;
   const [openExpense, setOpenExpense] = useState<string | null>(null);
   /** Formularz wydatku jest zwinięty do jednego wiersza, jak „Dodaj zadanie”. */
   const [addingExpense, setAddingExpense] = useState(false);
 
   const { habits, habitLogs } = s.data;
   const liveHabits = activeHabits(habits);
-  const dueHabits = liveHabits.filter((h) => isDue(h, habitLogs, day));
+  const dueHabits = liveHabits.filter((h) => h.kind !== 'quit' && isDue(h, habitLogs, day));
+  const quitHabits = liveHabits.filter((h) => h.kind === 'quit');
   const habitsDone = dueHabits.filter((h) => logOn(habitLogs, h.id, day)).length;
 
   const swipe = useSwipe(
@@ -76,9 +77,17 @@ export function TodayScreen({ day, setDay, goToExpenses }: Props) {
       <header class="page-head">
         <div class="page-head-row">
           <h1 class="page-title">{title}</h1>
-          {!isToday && (
-            <button class="pill" onClick={() => setDay(today)}>Wróć do dziś</button>
-          )}
+          <span class="head-actions">
+            {!isToday && (
+              <button class="pill" onClick={() => setDay(today)}>Wróć do dziś</button>
+            )}
+            <button class="round-btn" onClick={openSettings} aria-label="Ustawienia">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="3" />
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1.08-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1.08 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+              </svg>
+            </button>
+          </span>
         </div>
         <p class="page-sub">{subtitle}</p>
         <WeekStrip day={day} today={today} tasks={allTasks.filter(isLive)} onPick={setDay} />
@@ -128,7 +137,7 @@ export function TodayScreen({ day, setDay, goToExpenses }: Props) {
             <h2>Nawyki</h2>
             <span class="section-stat num">{dueHabits.length > 0 && `${habitsDone}/${dueHabits.length}`}</span>
           </header>
-          {dueHabits.length === 0 ? (
+          {dueHabits.length === 0 && quitHabits.length === 0 ? (
             <p class="empty">
               {liveHabits.length === 0 ? 'Brak nawyków — dodasz je na karcie Nawyki.' : isToday ? 'Na dziś nic zaplanowanego.' : 'Tego dnia nic nie było zaplanowane.'}
             </p>
@@ -136,6 +145,9 @@ export function TodayScreen({ day, setDay, goToExpenses }: Props) {
             <ul class="plain-list">
               {dueHabits.map((h) => (
                 <HabitRow key={`${h.id}:${day}`} habit={h} logs={habitLogs} day={day} today={today} />
+              ))}
+              {quitHabits.map((h) => (
+                <QuitRow key={`${h.id}:${day}`} habit={h} logs={habitLogs} expenses={expenses} categories={allCategories} day={day} />
               ))}
             </ul>
           )}
@@ -153,7 +165,6 @@ export function TodayScreen({ day, setDay, goToExpenses }: Props) {
             <button class="btn-text" onClick={goToExpenses}>Uzupełnij</button>
           </p>
         )}
-        {junkLine && <p class="note">{junkLine}</p>}
         {dayExpenses.length === 0 ? (
           <p class="empty">{isToday ? 'Dziś bez wydatków.' : 'Tego dnia nie zapisano wydatków.'}</p>
         ) : (

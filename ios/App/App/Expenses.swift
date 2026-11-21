@@ -13,8 +13,12 @@ struct AddExpenseIntent: AppIntent {
     static let description = IntentDescription("Zapisuje płatność w Dzienniku bez otwierania aplikacji.")
     static let openAppWhenRun: Bool = false
 
+    // Opcjonalna: odczyt pustego wymaganego parametru w `perform()` kończy się fatalError, a proces aplikacji
+    // pada w tle. Skróty pokazują wtedy tylko „Couldn't communicate with a helper application.” — tak jest
+    // np. przy uruchomieniu automatyzacji „Transakcja” przyciskiem ▶︎ (bez płatności zmienna „Kwota” jest pusta)
+    // albo gdy Portfel nie poda kwoty. Brak kwoty obsługujemy jako zwykły, czytelny błąd.
     @Parameter(title: "Kwota")
-    var amount: IntentCurrencyAmount
+    var amount: IntentCurrencyAmount?
 
     // Opcjonalny: wymagany parametr bez wartości z automatyzacji kazałby Skrótom pytać przy kasie.
     @Parameter(title: "Sklep")
@@ -24,15 +28,31 @@ struct AddExpenseIntent: AppIntent {
     var card: String?
 
     func perform() async throws -> some IntentResult {
+        guard let amount else { throw AddExpenseError.missingAmount }
+        let value = NSDecimalNumber(decimal: amount.amount).doubleValue
+        // NaN/∞ wywróciłyby JSONSerialization (wyjątek Obj-C, którego `try` nie łapie) — znów crash w tle.
+        guard value.isFinite else { throw AddExpenseError.missingAmount }
+        let currency = amount.currencyCode.trimmingCharacters(in: .whitespaces).uppercased()
         try PendingQueue.append([
             "id": UUID().uuidString,
             "capturedAt": Int64((Date().timeIntervalSince1970 * 1000).rounded()),
-            "amount": NSDecimalNumber(decimal: amount.amount).doubleValue,
-            "currency": amount.currencyCode.uppercased(),
+            "amount": value,
+            "currency": currency.isEmpty ? "PLN" : currency,
             "merchant": merchant ?? "",
             "card": card ?? "",
         ])
         return .result()
+    }
+}
+
+enum AddExpenseError: Error, CustomLocalizedStringResourceConvertible {
+    case missingAmount
+
+    var localizedStringResource: LocalizedStringResource {
+        switch self {
+        case .missingAmount:
+            return "Brak kwoty płatności. Automatyzację sprawdzisz prawdziwą płatnością — przycisk ▶︎ w Skrótach nie podaje kwoty."
+        }
     }
 }
 

@@ -38,3 +38,19 @@ export function plural(n: number, one: string, few: string, many: string): strin
   if (d >= 2 && d <= 4 && !(dd >= 12 && dd <= 14)) return few;
   return many;
 }
+
+/**
+ * Czas wpisany przez człowieka → ms. Przyjmuje „1:30”, „1h30”, „1,5h”, „1 h 30 min”, „45”, „45 min”.
+ * Sama liczba to minuty. Zwraca null, gdy nie da się odczytać.
+ */
+export function parseDuration(input: string): number | null {
+  const s = input.trim().toLowerCase().replace(',', '.');
+  if (!s) return null;
+  let m = s.match(/^(\d+):([0-5]?\d)$/);
+  if (m) return (Number(m[1]) * 60 + Number(m[2])) * 60_000;
+  m = s.match(/^(\d+(?:\.\d+)?)\s*(?:h|godz)\.?\s*(?:(\d+)\s*(?:m|min)?)?$/);
+  if (m) return Math.round((parseFloat(m[1]) * 60 + (m[2] ? Number(m[2]) : 0)) * 60_000);
+  m = s.match(/^(\d+(?:\.\d+)?)\s*(?:m|min)?$/);
+  if (m) return Math.round(parseFloat(m[1]) * 60_000);
+  return null;
+}

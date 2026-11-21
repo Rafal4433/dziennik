@@ -8,6 +8,7 @@ import {
   pauseTimer,
   reopen,
   reschedule,
+  setTimeEntryDuration,
   snoozePrompt,
   splitTask,
   startTimer,
@@ -16,7 +17,7 @@ import {
 } from '../../data/store';
 import { carryCount, entryDuration, needsDecision, timeForTask } from '../../domain/tasks';
 import { useNow } from '../../lib/hooks';
-import { formatClock, formatHM, formatMinutes } from '../../lib/format';
+import { formatClock, formatHM, formatMinutes, parseDuration } from '../../lib/format';
 import { addDays, formatDayShort } from '../../lib/date';
 
 interface Props {
@@ -256,15 +257,12 @@ function TaskDetails({ task, entries, total, running, today, viewDay, now }: Det
       </label>
 
       {own.length > 0 && (
+        <span class="field-label">Odcinki · stuknij czas, by poprawić</span>
+      )}
+      {own.length > 0 && (
         <ol class="entries">
           {own.map((e) => (
-            <li key={e.id} class="num">
-              <span>{e.source === 'manual' ? 'dopisane' : `${timeFmt.format(e.startedAt)}–${e.endedAt ? timeFmt.format(e.endedAt) : 'teraz'}`}</span>
-              <span class="entry-dur">{formatHM(entryDuration(e, now))}</span>
-              {e.endedAt !== null && (
-                <button class="btn-x" aria-label="Usuń ten odcinek czasu" onClick={() => deleteTimeEntry(e.id)}>×</button>
-              )}
-            </li>
+            <EntryRow key={e.id} entry={e} now={now} />
           ))}
         </ol>
       )}
@@ -296,6 +294,66 @@ function TaskDetails({ task, entries, total, running, today, viewDay, now }: Det
         </div>
       )}
     </div>
+  );
+}
+
+/** Odcinek czasu: stuknięcie w długość pozwala ją poprawić (np. stoper zostawiony na noc). */
+function EntryRow({ entry: e, now }: { entry: TimeEntry; now: number }) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState('');
+  const dur = entryDuration(e, now);
+  const parsed = parseDuration(value);
+  const label = e.source === 'manual' ? 'dopisane' : `${timeFmt.format(e.startedAt)}–${e.endedAt ? timeFmt.format(e.endedAt) : 'teraz'}`;
+
+  const open = () => {
+    setValue(formatHM(dur));
+    setEditing(true);
+  };
+  const save = () => {
+    if (parsed !== null) setTimeEntryDuration(e.id, parsed);
+    setEditing(false);
+  };
+
+  if (editing) {
+    return (
+      <li class="num is-editing">
+        <form
+          class="entry-edit"
+          onSubmit={(ev) => {
+            ev.preventDefault();
+            save();
+          }}
+        >
+          <span>{label}</span>
+          <input
+            class="entry-input num"
+            value={value}
+            inputMode="text"
+            aria-label="Czas tego odcinka, np. 1:30 albo 45"
+            aria-invalid={parsed === null}
+            onInput={(ev) => setValue(ev.currentTarget.value)}
+            onKeyDown={(ev) => ev.key === 'Escape' && setEditing(false)}
+            autoFocus
+            onFocus={(ev) => ev.currentTarget.select()}
+          />
+          <button class="btn-text" type="submit" disabled={parsed === null}>Zapisz</button>
+          <button class="btn-text" type="button" onClick={() => setEditing(false)}>Anuluj</button>
+        </form>
+        {e.endedAt === null && <p class="hint">Zapis zatrzyma stoper.</p>}
+      </li>
+    );
+  }
+
+  return (
+    <li class="num">
+      <span>{label}</span>
+      <button class="entry-dur" aria-label={`Popraw czas: ${formatHM(dur)}`} onClick={open}>
+        {formatHM(dur)}
+      </button>
+      {e.endedAt !== null && (
+        <button class="btn-x" aria-label="Usuń ten odcinek czasu" onClick={() => deleteTimeEntry(e.id)}>×</button>
+      )}
+    </li>
   );
 }
 

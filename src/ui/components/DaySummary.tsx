@@ -1,6 +1,7 @@
 import type { DayKey, Task, TimeEntry } from '../../data/model';
-import { timeForDay, timeForTask } from '../../domain/tasks';
-import { formatHM } from '../../lib/format';
+import { dayTime, timeForTask } from '../../domain/tasks';
+import { clockOf } from '../../lib/date';
+import { formatHM, plural } from '../../lib/format';
 
 interface Props {
   day: DayKey;
@@ -18,7 +19,7 @@ export function DaySummary({ day, today, tasks, carriedAway, entries, now }: Pro
   const letGo = tasks.filter((t) => t.status === 'skipped');
   const stillOpen = tasks.filter((t) => t.status === 'todo');
   const goingOn = day === today ? stillOpen : [...carriedAway, ...stillOpen];
-  const worked = timeForDay(entries, day, now);
+  const time = dayTime(entries, tasks, day, now);
 
   return (
     <section class="section summary">
@@ -32,13 +33,49 @@ export function DaySummary({ day, today, tasks, carriedAway, entries, now }: Pro
         </div>
         <div class="stat-tile">
           <dt>czas pracy</dt>
-          <dd class="num">{formatHM(worked)}</dd>
+          <dd class="num">{formatHM(time.total)}</dd>
         </div>
         <div class="stat-tile">
           <dt>{day === today ? 'na jutro' : 'dalej'}</dt>
           <dd class="num">{goingOn.length}</dd>
         </div>
       </dl>
+
+      {time.total > 0 && (
+        <>
+          <h3 class="group-title">Czas pracy</h3>
+          <ul class="group">
+            <li class="group-row">
+              <span class="group-text">Przy zrobionych</span>
+              <span class="group-side num">{formatHM(time.onDone)}</span>
+            </li>
+            {time.onOther > 0 && (
+              <li class="group-row">
+                <span class="group-text">Przy pozostałych</span>
+                <span class="group-side num">{formatHM(time.onOther)}</span>
+              </li>
+            )}
+            {time.span && (
+              <li class="group-row">
+                <span class="group-text">
+                  Godziny pracy · {time.sessions} {plural(time.sessions, 'odcinek', 'odcinki', 'odcinków')}
+                </span>
+                <span class="group-side num">
+                  {clockOf(time.span.from)}–{clockOf(time.span.to)}
+                </span>
+              </li>
+            )}
+            {time.estimate && (
+              <li class="group-row">
+                <span class="group-text">Szacunek / faktycznie</span>
+                <span class="group-side num">
+                  {formatHM(time.estimate.plannedMs)} / {formatHM(time.estimate.actualMs)}
+                </span>
+              </li>
+            )}
+          </ul>
+        </>
+      )}
 
       {done.length > 0 && (
         <>

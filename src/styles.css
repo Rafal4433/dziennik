@@ -90,6 +90,12 @@
   box-sizing: border-box;
 }
 
+/* iOS (Safari i WKWebView) sprawdza touch-action na stukniętym elemencie,
+   więc samo `html` nie wystarcza: bez przybliżania podwójnym stuknięciem wszędzie. */
+* {
+  touch-action: manipulation;
+}
+
 html {
   -webkit-text-size-adjust: 100%;
   -webkit-tap-highlight-color: transparent;
@@ -868,8 +874,56 @@ input[type='date']::-webkit-date-and-time-value {
 
 .entry-dur {
   min-width: 40px;
+  min-height: 36px;
+  padding: 0 2px;
   text-align: right;
+  font: inherit;
   color: var(--ink);
+  background: none;
+  border: 0;
+  text-decoration: underline dotted var(--ink-3);
+  text-underline-offset: 4px;
+  cursor: pointer;
+}
+
+.entries li.is-editing {
+  display: block;
+  padding: 6px 0 8px;
+}
+
+.entry-edit {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.entry-edit > span:first-child {
+  flex: 1;
+  white-space: nowrap;
+}
+
+.entry-input {
+  width: 60px;
+  padding: 4px 0;
+  /* 16 px: mniejsze pole iOS przybliża przy stuknięciu. */
+  font-size: 16px;
+  text-align: right;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--ink);
+  border-radius: 0;
+}
+
+.entry-input:focus {
+  outline: none;
+}
+
+.entry-input[aria-invalid='true'] {
+  border-bottom-color: var(--ink-3);
+}
+
+.entries .hint {
+  margin: 4px 0 0;
 }
 
 .detail-actions {

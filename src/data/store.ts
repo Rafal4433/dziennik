@@ -7,7 +7,7 @@ import { dayKeyOf, todayKey } from '../lib/date';
 import { toPLNGrosze } from '../domain/currency';
 import { DEFAULT_CATEGORIES, merchantKey } from '../domain/expenses';
 import { newId } from '../lib/id';
-import { carryCount, makeTask, parseEstimate, rollover, runningEntry } from '../domain/tasks';
+import { carryCount, makeTask, parseEstimate, rollover, runningEntry, withDuration } from '../domain/tasks';
 
 /**
  * Cały stan trzymany jest w pamięci (dane jednej osoby to najwyżej kilka tysięcy rekordów),
@@ -260,6 +260,14 @@ export function addManualTime(taskId: string, minutes: number, day: DayKey) {
       },
     ],
   });
+}
+
+/** Poprawia długość odcinka czasu (zatrzymuje go, jeśli stoper jeszcze chodzi). */
+export function setTimeEntryDuration(id: string, ms: number) {
+  const e = state.data.timeEntries.find((x) => x.id === id);
+  if (!e) return;
+  const next = withDuration(e, ms, Date.now());
+  if (next) commit({ timeEntries: [next] });
 }
 
 export function deleteTimeEntry(id: string) {

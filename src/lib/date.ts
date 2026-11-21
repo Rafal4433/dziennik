@@ -93,3 +93,15 @@ export function relativeDayName(key: DayKey, today: DayKey): string | null {
     default: return null;
   }
 }
+
+const clockFmt = new Intl.DateTimeFormat('pl-PL', {
+  timeZone: TIME_ZONE,
+  hour: 'numeric',
+  minute: '2-digit',
+  hourCycle: 'h23',
+});
+
+/** Godzina zegarowa „8:05” w Europe/Warsaw. */
+export function clockOf(ts: number): string {
+  return clockFmt.format(new Date(ts));
+}

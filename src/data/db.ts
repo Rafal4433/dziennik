@@ -21,7 +21,7 @@ const DB_NAME = 'dziennik';
 export const DB_VERSION = 2;
 const META_KEY = 'app';
 
-export const defaultMeta = (): Meta => ({ lastRolloverDay: null, lastRollover: null, expensesSeeded: false, habitsSeeded: false });
+export const defaultMeta = (): Meta => ({ lastRolloverDay: null, lastRollover: null, expensesSeeded: false, habitsSeeded: false, junkHabitSeeded: false, badHabitsSeeded: false });
 
 /** Uzupełnia pola dodane w v2 (rekordy ze starej bazy lub starej kopii). */
 export function normalizeExpense(e: any): Expense {
@@ -39,7 +39,7 @@ export function normalizeCategory(c: any): Category {
 }
 
 export function normalizeHabit(h: any): Habit {
-  return { ...h, kind: h.kind ?? 'check', unit: h.unit ?? null };
+  return { ...h, kind: h.kind ?? 'check', unit: h.unit ?? null, countsJunk: h.countsJunk ?? false };
 }
 
 export function normalizeHabitLog(l: any): HabitLog {

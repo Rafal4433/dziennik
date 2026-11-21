@@ -72,7 +72,7 @@ function HabitItem({ habit: h, first, last, onMove }: { habit: Habit; first: boo
         onChange={(kind) => {
           const nextUnit = kind === 'measure' ? h.unit ?? 'kg' : null;
           setUnit(nextUnit ?? '');
-          updateHabit(h.id, { kind, unit: nextUnit });
+          updateHabit(h.id, kind === 'quit' ? { kind, unit: nextUnit, frequency: { kind: 'daily' } } : { kind, unit: nextUnit });
         }}
       />
       {h.kind === 'measure' && (
@@ -91,7 +91,7 @@ function HabitItem({ habit: h, first, last, onMove }: { habit: Habit; first: boo
           />
         </label>
       )}
-      <FrequencyPicker value={h.frequency} onChange={(frequency) => updateHabit(h.id, { frequency })} />
+      {h.kind !== 'quit' && <FrequencyPicker value={h.frequency} onChange={(frequency) => updateHabit(h.id, { frequency })} />}
       <div class="cat-actions">
         <button class="btn-text quiet" onClick={() => updateHabit(h.id, { archivedAt: Date.now() })}>Archiwizuj</button>
         <span class="cat-move">
@@ -113,6 +113,9 @@ function KindPicker({ kind, onChange }: { kind: HabitKind; onChange: (k: HabitKi
         </button>
         <button type="button" class={`seg-btn${kind === 'measure' ? ' is-active' : ''}`} aria-pressed={kind === 'measure'} onClick={() => kind !== 'measure' && onChange('measure')}>
           Wartość
+        </button>
+        <button type="button" class={`seg-btn${kind === 'quit' ? ' is-active' : ''}`} aria-pressed={kind === 'quit'} onClick={() => kind !== 'quit' && onChange('quit')}>
+          Do rzucenia
         </button>
       </div>
     </div>
@@ -214,7 +217,11 @@ function NewHabit() {
           <input value={unit} onInput={(e) => setUnit(e.currentTarget.value)} placeholder="brak" enterKeyHint="done" />
         </label>
       )}
-      <FrequencyPicker value={frequency} onChange={setFrequency} />
+      {kind === 'quit' ? (
+        <p class="hint">Stuknięcie na „Dziś” zapisuje wpadkę. Liczy się seria dni bez niej.</p>
+      ) : (
+        <FrequencyPicker value={frequency} onChange={setFrequency} />
+      )}
       <div class="cat-actions">
         <button class="btn" type="submit" disabled={!name.trim()}>Dodaj nawyk</button>
       </div>

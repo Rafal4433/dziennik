@@ -3,20 +3,28 @@ import { openDB } from 'idb';
 import { describe, expect, it } from 'vitest';
 import { IdbRepository, defaultMeta } from '../src/data/db';
 import { emptyData } from '../src/data/model';
-import { addHabit, getState, init, replaceAllData, setMeasure, toggleHabit, updateHabit } from '../src/data/store';
+import { addHabit, bumpSlip, getState, init, replaceAllData, setMeasure, toggleHabit, updateHabit } from '../src/data/store';
 
 const settle = () => new Promise((r) => setTimeout(r, 30));
 let n = 0;
 const name = () => `hab-test-${++n}`;
 
 describe('nawyki: model, normalizacja i nawyki startowe', () => {
-  it('tworzy Witaminy i Ważenie się raz', async () => {
+  it('tworzy Witaminy, Ważenie się i Bez syfu raz', async () => {
     const repo = new IdbRepository(name());
     await init(repo);
     await settle();
     await init(repo);
     const habits = [...getState().data.habits].sort((a, b) => a.order - b.order);
-    expect(habits).toHaveLength(2);
+    expect(habits).toHaveLength(6);
+    expect(habits[2]).toMatchObject({ name: 'Bez syfu', kind: 'quit', countsJunk: true, order: 2 });
+    expect(habits.slice(3).map((h) => [h.name, h.kind, h.countsJunk])).toEqual([
+      ['Prokrastynacja', 'quit', false],
+      ['Scrollowanie', 'quit', false],
+      ['Ciągłe sprawdzanie MT5', 'quit', false],
+    ]);
+    expect(getState().meta.badHabitsSeeded).toBe(true);
+    expect(getState().meta.junkHabitSeeded).toBe(true);
     expect(habits[0]).toMatchObject({ name: 'Witaminy', kind: 'check', unit: null, frequency: { kind: 'daily' }, order: 0 });
     expect(habits[1]).toMatchObject({ name: 'Ważenie się', kind: 'measure', unit: 'kg', frequency: { kind: 'daily' }, order: 1 });
     expect(getState().meta.habitsSeeded).toBe(true);
@@ -27,13 +35,14 @@ describe('nawyki: model, normalizacja i nawyki startowe', () => {
     const repo = new IdbRepository(dbName);
     await repo.save({
       habits: [
-        { id: 'h1', name: 'Czytanie', frequency: { kind: 'daily' }, order: 0, archivedAt: null, kind: 'check', unit: null, createdAt: 1, updatedAt: 1, deletedAt: null },
+        { id: 'h1', name: 'Czytanie', frequency: { kind: 'daily' }, order: 0, archivedAt: null, kind: 'check', unit: null, countsJunk: false, createdAt: 1, updatedAt: 1, deletedAt: null },
       ],
     });
     await repo.setMeta({ ...defaultMeta(), habitsSeeded: false });
     await init(new IdbRepository(dbName));
     await settle();
-    expect(getState().data.habits).toHaveLength(1);
+    // Startowe nie wracają; dochodzi tylko „Bez syfu” (osobny znacznik).
+    expect(getState().data.habits.filter((h) => h.kind !== 'quit')).toHaveLength(1);
     expect(getState().meta.habitsSeeded).toBe(true);
   });
 
@@ -55,7 +64,7 @@ describe('nawyki: model, normalizacja i nawyki startowe', () => {
     await settle();
     const { habitsSeeded: _omit, ...oldMeta } = defaultMeta();
     await replaceAllData({ ...emptyData(), habits: [] }, oldMeta as any);
-    expect(getState().data.habits).toHaveLength(2);
+    expect(getState().data.habits).toHaveLength(6);
     expect(getState().meta.habitsSeeded).toBe(true);
   });
 
@@ -130,12 +139,41 @@ describe('nawyki: akcje', () => {
     expect(live(k.id)[0].value).toBe(80);
   });
 
+  it('wpadka nawyku do rzucenia: stuknięcie zapisuje, drugie cofa', async () => {
+    await setup();
+    const q = getState().data.habits.find((h) => h.kind === 'quit')!;
+    toggleHabit(q.id, D);
+    expect(live(q.id)).toHaveLength(1);
+    toggleHabit(q.id, D);
+    expect(live(q.id)).toHaveLength(0);
+  });
+
   it('addHabit i archiwizacja', async () => {
     const { w } = await setup();
     addHabit({ name: ' Czytanie ', kind: 'check', unit: null, frequency: { kind: 'daily' } });
     const added = getState().data.habits.find((h) => h.name === 'Czytanie')!;
-    expect(added.order).toBe(2);
+    expect(added.order).toBe(6);
     updateHabit(w.id, { archivedAt: 123 });
     expect(getState().data.habits.find((h) => h.id === w.id)!.archivedAt).toBe(123);
+  });
+});
+
+describe('licznik wpadek (bumpSlip)', () => {
+  it('+1 zwiększa, -1 cofa, przy zerze wpis znika', async () => {
+    await init(new IdbRepository(name()));
+    const q = getState().data.habits.find((h) => h.name === 'Scrollowanie')!;
+    const live = () => getState().data.habitLogs.filter((l) => l.habitId === q.id && l.deletedAt === null);
+    bumpSlip(q.id, '2026-11-18', -1);
+    expect(live()).toHaveLength(0);
+    bumpSlip(q.id, '2026-11-18', 1);
+    bumpSlip(q.id, '2026-11-18', 1);
+    bumpSlip(q.id, '2026-11-18', 1);
+    expect(live()).toHaveLength(1);
+    expect(live()[0].value).toBe(3);
+    bumpSlip(q.id, '2026-11-18', -1);
+    expect(live()[0].value).toBe(2);
+    bumpSlip(q.id, '2026-11-18', -1);
+    bumpSlip(q.id, '2026-11-18', -1);
+    expect(live()).toHaveLength(0);
   });
 });

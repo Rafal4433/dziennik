@@ -1,8 +1,9 @@
-import { Fragment } from 'preact';
 import { useLayoutEffect, useRef, useState } from 'preact/hooks';
-import type { DayKey, Habit, HabitLog } from '../../data/model';
-import { setMeasure, toggleHabit } from '../../data/store';
+import type { Category, DayKey, Expense, Habit, HabitLog } from '../../data/model';
+import { quitStats, slipCount } from '../../domain/quit';
+import { bumpSlip, setMeasure, toggleHabit } from '../../data/store';
 import { formatMeasure, logOn, parseMeasure, streak, weightTrend } from '../../domain/habits';
+import { plural } from '../../lib/format';
 
 interface Props {
   habit: Habit;
@@ -16,7 +17,8 @@ interface Props {
 export function HabitRow({ habit, logs, day, today }: Props) {
   const log = logOn(logs, habit.id, day);
   const series = streak(habit, logs, today);
-  const seriesText = series > 1 ? `seria ${series}` : null;
+  const weekly = habit.frequency.kind === 'timesPerWeek';
+  const seriesText = series > 0 ? (weekly ? `${series} tyg. z rzędu` : `${series} ${plural(series, 'dzień', 'dni', 'dni')} z rzędu`) : null;
 
   if (habit.kind === 'check') {
     const done = !!log;
@@ -25,7 +27,7 @@ export function HabitRow({ habit, logs, day, today }: Props) {
         <button class="habit-toggle" aria-pressed={done} onClick={() => toggleHabit(habit.id, day)}>
           <span class="check-box" aria-hidden="true" />
           <span class="habit-name">{habit.name}</span>
-          {seriesText && <span class="habit-side num">{seriesText}</span>}
+          {seriesText && <span class="streak num">{seriesText}</span>}
         </button>
       </li>
     );
@@ -57,11 +59,6 @@ function MeasureRow({ habit, logs, day, log, seriesText }: { habit: Habit; logs:
   }, [showInput]);
 
   const last = saved === null ? weightTrend(logs, habit.id, day).last : null;
-  /** Żywy wpis bez wartości (np. odhaczony, zanim nawyk zmienił rodzaj). */
-  const doneNoValue = !!log && saved === null;
-  const meta = [doneNoValue ? 'zrobione, bez wartości' : last && `ostatnio ${formatMeasure(last.value, null)}`, seriesText].filter(
-    (x): x is string => !!x,
-  );
   const unitLabel = habit.unit ?? '';
 
   /**
@@ -100,8 +97,8 @@ function MeasureRow({ habit, logs, day, log, seriesText }: { habit: Habit; logs:
         >
           <span class="check-box" aria-hidden="true" />
           <span class="habit-name">{habit.name}</span>
-          {seriesText && <span class="habit-side num">{seriesText}</span>}
           <span class="habit-value num">{formatMeasure(saved, habit.unit)}</span>
+          {seriesText && <span class="streak num">{seriesText}</span>}
         </button>
       </li>
     );
@@ -118,20 +115,7 @@ function MeasureRow({ habit, logs, day, log, seriesText }: { habit: Habit; logs:
       >
         <span class="habit-label">
           <span class="check-box" aria-hidden="true" />
-          <span class="habit-text">
-            <label class="habit-name" for={`m-${habit.id}`}>{habit.name}</label>
-            {meta.length > 0 && (
-              <span class="habit-meta num">
-                {/* Każda część w całości — łamanie tylko między nimi. */}
-                {meta.map((m, i) => (
-                  <Fragment key={m}>
-                    {i > 0 && ' '}
-                    <span class="habit-meta-part">{i > 0 ? `· ${m}` : m}</span>
-                  </Fragment>
-                ))}
-              </span>
-            )}
-          </span>
+          <label class="habit-name" for={`m-${habit.id}`}>{habit.name}</label>
         </span>
         <span class="habit-entry">
           <input
@@ -142,6 +126,7 @@ function MeasureRow({ habit, logs, day, log, seriesText }: { habit: Habit; logs:
             enterKeyHint="done"
             autoComplete="off"
             value={text}
+            placeholder={last ? formatMeasure(last.value, null) : ''}
             onInput={(e) => {
               setText(e.currentTarget.value);
               setBad(false);
@@ -149,18 +134,38 @@ function MeasureRow({ habit, logs, day, log, seriesText }: { habit: Habit; logs:
             onBlur={() => submit(true)}
           />
           {unitLabel && <span class="habit-unit">{unitLabel}</span>}
-          <button
-            class="icon-btn habit-save"
-            type="submit"
-            aria-label={`Zapisz: ${habit.name}`}
-            // Fokus zostaje w polu, więc stuknięcie ✓ nie wywołuje najpierw blur.
-            onPointerDown={(e) => e.preventDefault()}
-          >
-            ✓
-          </button>
         </span>
+        {seriesText && <span class="streak num">{seriesText}</span>}
       </form>
       {bad && <p class="hint habit-hint">{habit.unit === 'kg' ? 'Podaj wagę, np. 82,4.' : 'Podaj liczbę.'}</p>}
+    </li>
+  );
+}
+
+/**
+ * Nawyk do rzucenia na „Dziś” jako licznik: stuknięcie = +1 wpadka w oglądanym dniu, „−” cofa jedną.
+ * Po prawej liczba dzisiejszych wpadek albo seria dni bez; wpadka z wydatku na syf cofa się tylko w wydatkach.
+ */
+export function QuitRow({ habit, logs, expenses, categories, day }: { habit: Habit; logs: HabitLog[]; expenses: Expense[]; categories: Category[]; day: DayKey }) {
+  const count = slipCount(habit, logs, day);
+  const { current, slippedToday } = quitStats(habit, logs, expenses, categories, day);
+  return (
+    <li class={`habit-row habit-quit${slippedToday ? ' is-slipped' : ''}`}>
+      <button class="habit-toggle" aria-label={`${habit.name}: dodaj wpadkę (teraz ${count})`} onClick={() => bumpSlip(habit.id, day, 1)}>
+        <svg class="quit-mark" width="22" height="22" viewBox="0 0 22 22" aria-hidden="true">
+          <circle cx="11" cy="11" r="10.25" fill="none" stroke="currentColor" stroke-width="1.5" />
+          <path d="M4.2 17.8L17.8 4.2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+        </svg>
+        <span class="habit-name">{habit.name}</span>
+        <span class={`streak num${slippedToday ? ' is-broken' : ''}`}>
+          {count > 0 ? `${count}×` : slippedToday ? 'wpadka' : `${current} ${plural(current, 'dzień', 'dni', 'dni')} bez`}
+        </span>
+      </button>
+      {count > 0 && (
+        <button class="quit-undo" aria-label={`${habit.name}: cofnij jedną wpadkę`} onClick={() => bumpSlip(habit.id, day, -1)}>
+          −
+        </button>
+      )}
     </li>
   );
 }

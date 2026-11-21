@@ -32,6 +32,7 @@ function habit(over: Partial<Habit> = {}): Habit {
     frequency: { kind: 'daily' },
     order: 0,
     archivedAt: null,
+    countsJunk: false,
     ...over,
   };
 }

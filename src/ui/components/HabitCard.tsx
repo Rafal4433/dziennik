@@ -12,7 +12,7 @@ export function HabitCard({ habit, logs, today }: { habit: Habit; logs: HabitLog
 
   const meta = [frequencyLabel(habit.frequency)];
   if (series > 0) {
-    meta.push(weekly ? `seria ${series} ${plural(series, 'tydzień', 'tygodnie', 'tygodni')}` : `seria ${series} ${plural(series, 'dzień', 'dni', 'dni')}`);
+    meta.push(weekly ? `${series} ${plural(series, 'tydzień', 'tygodnie', 'tygodni')} z rzędu` : `${series} ${plural(series, 'dzień', 'dni', 'dni')} z rzędu`);
   }
 
   return (

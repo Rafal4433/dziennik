@@ -88,6 +88,8 @@ export async function init(r: Repository) {
   runRolloverIfNeeded();
   ensureDefaultCategories();
   ensureDefaultHabits();
+  ensureJunkHabit();
+  ensureBadHabits();
   emit();
 }
 
@@ -137,10 +139,13 @@ function stopRunning(now: number, onlyTaskId?: string): TimeEntry[] {
   return [{ ...run, endedAt: now, updatedAt: now }];
 }
 
-export function addTask(rawTitle: string, date: DayKey) {
-  const { title, estimateMin } = parseEstimate(rawTitle);
-  if (!title) return;
-  commit({ tasks: [makeTask(title, date, Date.now(), { estimateMin })] });
+/** Zwraca id nowego zadania (np. do cofnięcia przez asystenta). */
+export function addTask(rawTitle: string, date: DayKey, opts: { estimateMin?: number | null } = {}): string | undefined {
+  const parsed = parseEstimate(rawTitle);
+  if (!parsed.title) return;
+  const t = makeTask(parsed.title, date, Date.now(), { estimateMin: opts.estimateMin ?? parsed.estimateMin });
+  commit({ tasks: [t] });
+  return t.id;
 }
 
 export function updateTask(id: string, patch: Partial<Pick<Task, 'title' | 'estimateMin' | 'minimalVersion'>>) {
@@ -292,6 +297,8 @@ export async function replaceAllData(data: Data, meta: Meta) {
   ensureDefaultCategories();
   // Kopia bez nawyków (np. sprzed modułu) dostaje startowe.
   ensureDefaultHabits();
+  ensureJunkHabit();
+  ensureBadHabits();
   emit();
 }
 
@@ -304,11 +311,40 @@ export function ensureDefaultHabits() {
   const now = Date.now();
   const base = { createdAt: now, updatedAt: now, deletedAt: null, frequency: { kind: 'daily' } as const, archivedAt: null };
   const habits: Habit[] = [
-    { ...base, id: newId(), name: 'Witaminy', kind: 'check', unit: null, order: 0 },
-    { ...base, id: newId(), name: 'Ważenie się', kind: 'measure', unit: 'kg', order: 1 },
+    { ...base, id: newId(), name: 'Witaminy', kind: 'check', unit: null, order: 0, countsJunk: false },
+    { ...base, id: newId(), name: 'Ważenie się', kind: 'measure', unit: 'kg', order: 1, countsJunk: false },
   ];
   commit({ habits });
   setMeta({ ...state.meta, habitsSeeded: true });
+}
+
+/** „Bez syfu” jako nawyk do rzucenia: zakładany raz, także dla istniejących danych. */
+export function ensureJunkHabit() {
+  if (state.meta.junkHabitSeeded) return;
+  const now = Date.now();
+  const order = state.data.habits.reduce((m, h) => Math.max(m, h.order), -1) + 1;
+  const habit: Habit = {
+    id: newId(), createdAt: now, updatedAt: now, deletedAt: null, name: 'Bez syfu', kind: 'quit', unit: null,
+    frequency: { kind: 'daily' }, order, archivedAt: null, countsJunk: true,
+  };
+  commit({ habits: [habit] });
+  setMeta({ ...state.meta, junkHabitSeeded: true });
+}
+
+/** Startowe liczniki złych nawyków: zakładane raz; nazwy, które już są, pomijamy. */
+export const BAD_HABITS = ['Prokrastynacja', 'Scrollowanie', 'Ciągłe sprawdzanie MT5'];
+
+export function ensureBadHabits() {
+  if (state.meta.badHabitsSeeded) return;
+  const now = Date.now();
+  let order = state.data.habits.reduce((m, h) => Math.max(m, h.order), -1) + 1;
+  const taken = new Set(state.data.habits.filter((h) => h.deletedAt === null).map((h) => h.name.toLowerCase()));
+  const habits: Habit[] = BAD_HABITS.filter((n) => !taken.has(n.toLowerCase())).map((name) => ({
+    id: newId(), createdAt: now, updatedAt: now, deletedAt: null, name, kind: 'quit', unit: null,
+    frequency: { kind: 'daily' }, order: order++, archivedAt: null, countsJunk: false,
+  }));
+  if (habits.length) commit({ habits });
+  setMeta({ ...state.meta, badHabitsSeeded: true });
 }
 
 /** Nowy żywy wpis nawyku (nowe id — także po tombstonie). */
@@ -316,15 +352,34 @@ function newLog(habitId: string, day: DayKey, value: number | null, now: number)
   return { id: newId(), createdAt: now, updatedAt: now, deletedAt: null, habitId, date: day, value };
 }
 
-/** Odhaczenie / odznaczenie nawyku `check`. Dla `measure` i nieznanego nawyku — nic. */
+/** Odhaczenie / odznaczenie nawyku `check` albo wpadki nawyku `quit`. Dla `measure` i nieznanego nawyku — nic. */
 export function toggleHabit(habitId: string, day: DayKey) {
   const h = state.data.habits.find((x) => x.id === habitId && x.deletedAt === null);
-  if (!h || h.kind !== 'check') return;
+  if (!h || h.kind === 'measure') return;
   const now = Date.now();
   const existing = logOn(state.data.habitLogs, habitId, day);
   commit({
     habitLogs: [existing ? { ...existing, deletedAt: now, updatedAt: now } : newLog(habitId, day, null, now)],
   });
+}
+
+/**
+ * Licznik wpadek nawyku `quit`: +1 dopisuje wpadkę w danym dniu, -1 cofa jedną (przy zerze wpis znika).
+ * Liczba trzymana w `value` wpisu (null w starszych wpisach = 1).
+ */
+export function bumpSlip(habitId: string, day: DayKey, delta: 1 | -1) {
+  const h = state.data.habits.find((x) => x.id === habitId && x.deletedAt === null);
+  if (!h || h.kind !== 'quit') return;
+  const now = Date.now();
+  const existing = logOn(state.data.habitLogs, habitId, day);
+  const count = existing ? (existing.value ?? 1) : 0;
+  const next = count + delta;
+  if (next < 0) return;
+  if (next === 0) {
+    if (existing) commit({ habitLogs: [{ ...existing, deletedAt: now, updatedAt: now }] });
+    return;
+  }
+  commit({ habitLogs: [existing ? { ...existing, value: next, updatedAt: now } : newLog(habitId, day, next, now)] });
 }
 
 /** Wpis wartości nawyku `measure`: null kasuje (tombstone), liczba nadpisuje lub tworzy wpis. */
@@ -344,14 +399,24 @@ export function setMeasure(habitId: string, day: DayKey, value: number | null) {
   });
 }
 
-export function addHabit(input: { name: string; kind: HabitKind; unit: string | null; frequency: HabitFrequency }) {
+export function addHabit(input: { name: string; kind: HabitKind; unit: string | null; frequency: HabitFrequency }): string | undefined {
   const name = input.name.trim();
   if (!name) return;
   const now = Date.now();
   const order = state.data.habits.reduce((m, h) => Math.max(m, h.order), -1) + 1;
+  const id = newId();
   commit({
-    habits: [{ id: newId(), createdAt: now, updatedAt: now, deletedAt: null, name, kind: input.kind, unit: input.unit, frequency: input.frequency, order, archivedAt: null }],
+    habits: [{ id, createdAt: now, updatedAt: now, deletedAt: null, name, kind: input.kind, unit: input.unit, frequency: input.kind === 'quit' ? { kind: 'daily' } : input.frequency, order, archivedAt: null, countsJunk: false }],
   });
+  return id;
+}
+
+/** Usuwa nawyk (tombstone) — używane przy cofaniu wpisu asystenta. */
+export function deleteHabit(id: string) {
+  const h = state.data.habits.find((x) => x.id === id);
+  if (!h) return;
+  const now = Date.now();
+  commit({ habits: [{ ...h, deletedAt: now, updatedAt: now }] });
 }
 
 export function updateHabit(id: string, patch: Partial<Pick<Habit, 'name' | 'kind' | 'unit' | 'frequency' | 'order' | 'archivedAt'>>) {
@@ -481,21 +546,24 @@ export async function resolvePendingRates(fetchFn?: typeof fetch): Promise<void>
   }
 }
 
-export async function addExpense(input: { amount: number; currency: string; categoryId: string | null; note: string; date: DayKey }) {
+export async function addExpense(input: { amount: number; currency: string; categoryId: string | null; note: string; date: DayKey; merchant?: string }): Promise<string> {
   const priced = await price(input.amount, normCurrency(input.currency), input.date);
+  const id = newId();
   commit({
     expenses: [
       newExpense(Date.now(), {
+        id,
         ...priced,
         date: input.date,
         categoryId: input.categoryId,
         note: input.note,
-        merchant: '',
+        merchant: input.merchant ?? '',
         source: 'manual',
         capturedAt: null,
       }),
     ],
   });
+  return id;
 }
 
 export function categorizeExpense(id: string, categoryId: string, patch?: { note?: string; amount?: number }) {
@@ -512,6 +580,13 @@ export function categorizeExpense(id: string, categoryId: string, patch?: { note
     changes.merchantRules = [next];
   }
   commit(changes);
+}
+
+/** Notatka wydatku zapisywana od razu (bez wybierania kategorii). */
+export function updateExpenseNote(id: string, note: string) {
+  const e = state.data.expenses.find((x) => x.id === id);
+  if (!e || e.note === note) return;
+  commit({ expenses: [{ ...e, note, updatedAt: Date.now() }] });
 }
 
 export function deleteExpense(id: string) {

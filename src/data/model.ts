@@ -104,7 +104,8 @@ export type HabitFrequency =
   | { kind: 'weekdays'; days: number[] };
 
 /** `check` — samo odhaczenie; `measure` — wpis z liczbą (np. waga). */
-export type HabitKind = 'check' | 'measure';
+/** `quit` = nawyk do rzucenia: wpis w danym dniu oznacza wpadkę. */
+export type HabitKind = 'check' | 'measure' | 'quit';
 
 export interface Habit extends BaseRecord {
   name: string;
@@ -114,13 +115,15 @@ export interface Habit extends BaseRecord {
   frequency: HabitFrequency;
   order: number;
   archivedAt: number | null;
+  /** Tylko `quit`: wydatek w kategorii syf też liczy się jako wpadka. */
+  countsJunk: boolean;
 }
 
 /** Jedno odhaczenie nawyku w danym dniu. */
 export interface HabitLog extends BaseRecord {
   habitId: string;
   date: DayKey;
-  /** Dla `measure`: wartość w jednostce nawyku; dla `check` null. */
+  /** Dla `measure`: wartość w jednostce nawyku; dla `check` null; dla `quit` liczba wpadek tego dnia (null = 1). */
   value: number | null;
 }
 
@@ -172,6 +175,10 @@ export interface Meta {
   expensesSeeded: boolean;
   /** Czy nawyki startowe zostały już założone. */
   habitsSeeded: boolean;
+  /** Czy założono nawyk do rzucenia „Bez syfu”. */
+  junkHabitSeeded: boolean;
+  /** Czy założono liczniki złych nawyków (prokrastynacja, scrollowanie, MT5). */
+  badHabitsSeeded: boolean;
 }
 
 export const emptyData = (): Data => ({

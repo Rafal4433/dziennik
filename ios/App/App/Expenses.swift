@@ -13,12 +13,14 @@ struct AddExpenseIntent: AppIntent {
     static let description = IntentDescription("Zapisuje płatność w Dzienniku bez otwierania aplikacji.")
     static let openAppWhenRun: Bool = false
 
-    // Opcjonalna: odczyt pustego wymaganego parametru w `perform()` kończy się fatalError, a proces aplikacji
-    // pada w tle. Skróty pokazują wtedy tylko „Couldn't communicate with a helper application.” — tak jest
-    // np. przy uruchomieniu automatyzacji „Transakcja” przyciskiem ▶︎ (bez płatności zmienna „Kwota” jest pusta)
-    // albo gdy Portfel nie poda kwoty. Brak kwoty obsługujemy jako zwykły, czytelny błąd.
+    // Kwota jako tekst, nie `IntentCurrencyAmount`: Skróty nie zawsze potrafią zamienić zmienną „Kwota”
+    // z automatyzacji Portfela na kwotę z walutą i przekazują wtedy pusty parametr (płatność przepadała
+    // z błędem „Brak kwoty”). Na tekst da się zamienić każdą zmienną, a format („12,99 zł”, „PLN 12.99”,
+    // „€5.00”) rozbiera `CapturedAmount.parse`.
+    // Opcjonalna: odczyt pustego wymaganego parametru w `perform()` kończy się fatalError i crashem w tle
+    // („Couldn't communicate with a helper application.”).
     @Parameter(title: "Kwota")
-    var amount: IntentCurrencyAmount?
+    var amount: String?
 
     // Opcjonalny: wymagany parametr bez wartości z automatyzacji kazałby Skrótom pytać przy kasie.
     @Parameter(title: "Sklep")
@@ -28,16 +30,14 @@ struct AddExpenseIntent: AppIntent {
     var card: String?
 
     func perform() async throws -> some IntentResult {
-        guard let amount else { throw AddExpenseError.missingAmount }
-        let value = NSDecimalNumber(decimal: amount.amount).doubleValue
-        // NaN/∞ wywróciłyby JSONSerialization (wyjątek Obj-C, którego `try` nie łapie) — znów crash w tle.
-        guard value.isFinite else { throw AddExpenseError.missingAmount }
-        let currency = amount.currencyCode.trimmingCharacters(in: .whitespaces).uppercased()
+        let raw = (amount ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !raw.isEmpty else { throw AddExpenseError.missingAmount }
+        guard let parsed = CapturedAmount.parse(raw) else { throw AddExpenseError.unreadableAmount(raw) }
         try PendingQueue.append([
             "id": UUID().uuidString,
             "capturedAt": Int64((Date().timeIntervalSince1970 * 1000).rounded()),
-            "amount": value,
-            "currency": currency.isEmpty ? "PLN" : currency,
+            "amount": parsed.value,
+            "currency": parsed.currency,
             "merchant": merchant ?? "",
             "card": card ?? "",
         ])
@@ -47,12 +47,51 @@ struct AddExpenseIntent: AppIntent {
 
 enum AddExpenseError: Error, CustomLocalizedStringResourceConvertible {
     case missingAmount
+    case unreadableAmount(String)
 
     var localizedStringResource: LocalizedStringResource {
         switch self {
         case .missingAmount:
             return "Brak kwoty płatności. Automatyzację sprawdzisz prawdziwą płatnością — przycisk ▶︎ w Skrótach nie podaje kwoty."
+        case .unreadableAmount(let raw):
+            return "Nie umiem odczytać kwoty „\(raw)”."
         }
+    }
+}
+
+/// Kwota z tekstu, który Skróty robią ze zmiennej „Kwota”: „12,99 zł”, „1 234,56 PLN”, „PLN 12.99”, „€5.00”, „12.99”.
+enum CapturedAmount {
+    private static let symbols: [(String, String)] = [("zł", "PLN"), ("€", "EUR"), ("$", "USD"), ("£", "GBP")]
+
+    static func parse(_ text: String) -> (value: Double, currency: String)? {
+        let upper = text.uppercased()
+        var currency = "PLN"
+        if let code = upper.range(of: "[A-Z]{3}", options: .regularExpression) {
+            currency = String(upper[code])
+        } else if let hit = symbols.first(where: { text.lowercased().contains($0.0) }) {
+            currency = hit.1
+        }
+        // Zostają cyfry i separatory; spacje (także twarde) to separatory tysięcy.
+        var number = String(text.filter { $0.isASCII && ($0.isNumber || $0 == "," || $0 == ".") })
+        let commas = number.filter { $0 == "," }.count
+        let dots = number.filter { $0 == "." }.count
+        if commas > 0 && dots > 0 {
+            // Oba separatory: ostatni jest dziesiętny, drugi to tysiące.
+            let decimal: Character = number.lastIndex(of: ",")! > number.lastIndex(of: ".")! ? "," : "."
+            number = String(number.filter { $0 != (decimal == "," ? "." : ",") })
+            number = number.replacingOccurrences(of: ",", with: ".")
+        } else if commas > 0 || dots > 0 {
+            let sep: Character = commas > 0 ? "," : "."
+            let parts = number.split(separator: sep, omittingEmptySubsequences: false)
+            // Jeden separator z 1–2 cyframi po nim = część dziesiętna („12,99”); inaczej tysiące („1.234”).
+            if parts.count == 2 && (1...2).contains(parts[1].count) {
+                number = parts.joined(separator: ".")
+            } else {
+                number = parts.joined()
+            }
+        }
+        guard let value = Double(number), value.isFinite, value > 0 else { return nil }
+        return ((value * 100).rounded() / 100, currency)
     }
 }
 

@@ -23,7 +23,13 @@ export function ExpenseRow({ expense, allCategories, categories, expanded, onTog
       <button class="expense-line" onClick={onToggle} aria-expanded={expanded}>
         <span class="expense-name">
           <span>{name ?? catName.charAt(0).toUpperCase() + catName.slice(1)}</span>
-          {name && <span class="expense-cat">{catName}</span>}
+          {name && (
+            <span class="expense-cat">
+              {catName}
+              {/* Przy płatności ze sklepem notatka nie jest nazwą wiersza — bez tego wyglądała na niezapisaną. */}
+              {expense.merchant && expense.note ? ` · ${expense.note}` : ''}
+            </span>
+          )}
         </span>
         <span class={`expense-amount num${expense.amount === null ? ' muted' : ''}`}>{expenseAmountLabel(expense)}</span>
       </button>

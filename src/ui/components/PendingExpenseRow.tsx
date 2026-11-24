@@ -19,7 +19,11 @@ export function PendingExpenseRow({ expense, categories, rules, expanded, onTogg
   return (
     <li class={`expense${expanded ? ' is-open' : ''}`}>
       <button class="expense-line" onClick={onToggle} aria-expanded={expanded}>
-        <span class="expense-name">{expense.merchant || expense.note || 'Wydatek'}</span>
+        <span class="expense-name">
+          <span>{expense.merchant || expense.note || 'Wydatek'}</span>
+          {/* Notatka pod sklepem — inaczej po zapisaniu nigdzie jej nie widać. */}
+          {expense.merchant && expense.note && <span class="expense-cat">{expense.note}</span>}
+        </span>
         {expense.capturedAt !== null && <span class="expense-time num">{timeFmt.format(expense.capturedAt)}</span>}
         <span class={`expense-amount num${expense.amount === null ? ' muted' : ''}`}>{expenseAmountLabel(expense)}</span>
       </button>

@@ -1,4 +1,4 @@
-import { useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import type { Category, Expense } from '../../data/model';
 import { categorizeExpense, deleteExpense, updateExpenseNote } from '../../data/store';
 import { parseAmount } from '../../domain/expenses';
@@ -24,7 +24,16 @@ export function ExpenseEditor({ expense, categories, suggested, onDone }: Props)
   const [pln, setPln] = useState(toField(expense.amount));
   const [invalid, setInvalid] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  // Notatka zapisuje się sama przy wyjściu z pola; stuknięcia kategorii wymaga tylko zmiana kwoty w zł.
+  // Notatka zapisuje się sama (chwilę po wpisaniu i przy zamknięciu panelu); stuknięcia kategorii wymaga
+  // tylko zmiana kwoty w zł. Nie polegamy na `blur`: na iPhonie stuknięcie wiersza (przycisku) nie zdejmuje
+  // fokusu z pola, panel się zwija, pole znika bez `blur` i notatka przepadała.
+  const latestNote = useRef(note);
+  latestNote.current = note;
+  useEffect(() => {
+    const t = setTimeout(() => updateExpenseNote(expense.id, note.trim()), 400);
+    return () => clearTimeout(t);
+  }, [note, expense.id]);
+  useEffect(() => () => updateExpenseNote(expense.id, latestNote.current.trim()), [expense.id]);
   const dirty = foreign && pln !== toField(expense.amount);
 
   const pick = (categoryId: string) => {
